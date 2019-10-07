@@ -38,7 +38,6 @@ static BYTE mainSig = -1;
 static struct Task* mainTask;
 
 static TimerContext sampler;
-static TimerContext endTimer;
 
 typedef struct Params {
     LONG* samples;
@@ -50,6 +49,11 @@ static ULONG freq;
 
 static APTR allocMem(size_t size)
 {
+    if (!size) {
+        IExec->DebugPrintF("%s: 0 size alloc\n", __func__);
+        return NULL;
+    }
+
     return IExec->AllocVecTags(size,
         AVT_ClearWithValue, 0,
         TAG_DONE);
@@ -72,7 +76,7 @@ static void timerStart(struct TimeRequest * request, ULONG micros)
     }
 
     if (micros == 0) {
-        IExec->DebugPrintF("Timer period 0");
+        IExec->DebugPrintF("Timer period 0\n");
         return;
     }
 
@@ -156,38 +160,45 @@ clean:
     return FALSE;
 }
 
-static void timerWait(TimerContext * ctx, ULONG micros)
+static void timerWait(ULONG micros)
 {
-     if (!ctx) {
-         IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
-         return;
-     }
+    TimerContext pauseTimer;
 
-    timerStart(ctx->request, micros);
+    if (!timerInit(&pauseTimer, NULL)) {
+        puts("Failed to create timer");
+        return;
+    }
 
-    const uint32 timerSig = 1L << ctx->port->mp_SigBit;
+    timerStart(pauseTimer.request, micros);
+
+    const uint32 timerSig = 1L << pauseTimer.port->mp_SigBit;
 
     uint32 wait;
     while ((wait = IExec->Wait(timerSig | SIGBREAKF_CTRL_C))) {
         if (wait & timerSig) {
-            puts("Timer finish");
+            IExec->DebugPrintF("Timer finish\n");
             break;
         }
 
         //puts("Stop pressing CTRL-C :)");
     }
+
+    timerQuit(&pauseTimer);
 }
 
-static void code()
+static BOOL interruptAlive = FALSE;
+
+static void interruptCode()
 {
     struct ExecBase *sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
-    static int flip = 0;
     static unsigned counter = 0;
 
     back[counter].task = task;
 
     if (++counter >= freq) {
+        static int flip = 0;
+
         counter = 0;
         front = samples[flip];
         flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
@@ -200,6 +211,8 @@ static void code()
 
     if (request && running) {
         timerStart(request, period);
+    } else {
+        interruptAlive = FALSE;
     }
 }
 
@@ -270,26 +283,34 @@ static BOOL traverse(struct List *list, struct Task *target, char * nameBuffer)
     return FALSE;
 }
 
-static SampleInfo findTaskData(struct Task * task)
+static BOOL traverseLists(struct Task * task, char * nameBuffer)
 {
     struct ExecBase *eb = (struct ExecBase *)SysBase;
-    SampleInfo info;
-
-    char nameBuffer[NAME_LEN] = { 0 };
 
     IExec->Disable();
 
-    BOOL result = traverse(&eb->TaskReady, task, nameBuffer);
+    BOOL found = traverse(&eb->TaskReady, task, nameBuffer);
 
-    if (!result) {
-        result = traverse(&eb->TaskWait, task, nameBuffer);
+    if (!found) {
+        found = traverse(&eb->TaskWait, task, nameBuffer);
     }
 
     IExec->Enable();
 
-    if (!result) {
+    return found;
+}
+
+static SampleInfo findTaskData(struct Task * task)
+{
+    SampleInfo info;
+
+    char nameBuffer[NAME_LEN] = { 0 };
+
+    BOOL found = traverseLists(task, nameBuffer);
+
+    if (!found) {
         if (task == mainTask) {
-            snprintf(info.nameBuffer, NAME_LEN, "Tequila (this process)");
+            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this process)");
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
@@ -345,7 +366,7 @@ static void showResults(SampleInfo * results)
 
     static unsigned round = 0;
 	
-    printf("%cc[[ Tequila ]] - Round # %d, frequency %lu Hz - [[ Control-C to quit ]]\n", 0x1B, round++, freq);
+    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz - [[ Control-C to quit ]]\n", 0x1B, round++, freq);
     printf("%-40s %6s %10s\n", "Task name:", "CPU %", "Priority");
 
     for (size_t i = 0; i < unique; i++) {
@@ -374,7 +395,7 @@ static void loop()
         }
 
         if (wait & SIGBREAKF_CTRL_C) {
-            puts("User pressed CTRL_C");
+            puts("...Adios!");
             running = FALSE;
         }
     }
@@ -384,7 +405,7 @@ static void loop()
 
 static BOOL parseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N";
+    const char * const pattern = "SAMPLES/N";
 
     struct RDArgs *result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -414,7 +435,7 @@ int main()
     parseArgs();
 
     struct Interrupt *interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
-        ASOINTR_Code, code,
+        ASOINTR_Code, interruptCode,
         TAG_DONE);
 
     if (!interrupt) {
@@ -447,15 +468,14 @@ int main()
     running = TRUE;
 
     timerStart(sampler.request, period);
+    interruptAlive = TRUE;
 
     loop();
 
-    if (timerInit(&endTimer, NULL)) {
-        const ULONG oneSecond = 1000000;
-        timerWait(&endTimer, oneSecond);
-        timerQuit(&endTimer);
-    } else {
-        puts("Failed to create end timer");
+    timerWait(1000000);
+
+    while (interruptAlive) {
+        puts("Waiting for interrupt handler");
     }
 
 quit:
@@ -469,6 +489,8 @@ quit:
 
     freeMem(samples[0]);
     freeMem(samples[1]);
+
+    samples[0] = samples[1] = NULL;
 
     if (interrupt) {
         IExec->FreeSysObject(ASOT_INTERRUPT, interrupt);

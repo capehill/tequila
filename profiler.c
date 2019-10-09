@@ -1,3 +1,4 @@
+#include "common.h"
 #include "timer.h"
 
 #include <proto/exec.h>
@@ -6,8 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define NAME_LEN 256
 
 static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (09.10.2019)";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
@@ -22,6 +21,9 @@ typedef struct SampleInfo {
     unsigned count;
     BYTE priority;
 } SampleInfo;
+
+static char* nameBuffer;
+static char* cliNameBuffer;
 
 static Sample* samples[2];
 static Sample* front;
@@ -41,27 +43,6 @@ typedef struct Params {
 static Params params = { NULL };
 static ULONG period;
 static ULONG freq;
-
-static APTR allocMem(size_t size)
-{
-    if (!size) {
-        IExec->DebugPrintF("%s: 0 size alloc\n", __func__);
-        return NULL;
-    }
-
-    return IExec->AllocVecTags(size,
-        AVT_ClearWithValue, 0,
-        TAG_DONE);
-}
-
-static void freeMem(APTR address)
-{
-    if (!address) {
-        IExec->DebugPrintF("%s: nullptr\n", __func__);
-    }
-
-    IExec->FreeVec(address);
-}
 
 static BOOL interruptAlive = FALSE;
 
@@ -93,59 +74,33 @@ static void interruptCode()
     }
 }
 
-static void copyString(char* const to, const char* const from, size_t len)
+static void getCliName(struct Task* task)
 {
-    if (to && from && len > 0) {
-        for (size_t i = 0; i < len; i++) {
-            to[i] = from[i];
-        }
-        to[len] = '\0';
-    }
-}
+    cliNameBuffer[0] = '\0';
 
-static size_t stringLen(const char* str)
-{
-    if (!str) {
-        IExec->DebugPrintF("%s - nullptr\n", __func__);
-        return 0;
-    }
-
-    size_t len = 0;
-
-    while (*str++) {
-        ++len;
-    }
-
-    return len;
-}
-
-static void getCliName(struct Task* task, char* nameBuffer)
-{
     if (IS_PROCESS(task)) {
         struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
-                copyString(nameBuffer, " [", 2);
+                copyString(cliNameBuffer, " [", 2);
 
                 // BSTR
                 size_t len = *(UBYTE *)commandName;
-                copyString(nameBuffer + stringLen(nameBuffer), commandName + 1, len);
-                copyString(nameBuffer + stringLen(nameBuffer), "]", 1);
+                copyString(cliNameBuffer + stringLen(cliNameBuffer), commandName + 1, len);
+                copyString(cliNameBuffer + stringLen(cliNameBuffer), "]", 1);
             }
         }
     }
 }
 
-static BOOL traverse(struct List* list, struct Task* target, char* nameBuffer)
+static BOOL traverse(struct List* list, struct Task* target)
 {
     for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
         struct Task* task = (struct Task *)node;
 
         if (task == target) {
-            char cliNameBuffer[NAME_LEN] = { 0 };
-
-            getCliName(task, cliNameBuffer);
+            getCliName(task);
 
             copyString(nameBuffer, node->ln_Name, stringLen(node->ln_Name));
 
@@ -160,16 +115,16 @@ static BOOL traverse(struct List* list, struct Task* target, char* nameBuffer)
     return FALSE;
 }
 
-static BOOL traverseLists(struct Task* task, char* nameBuffer)
+static BOOL traverseLists(struct Task* task)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
 
     IExec->Disable();
 
-    BOOL found = traverse(&eb->TaskReady, task, nameBuffer);
+    BOOL found = traverse(&eb->TaskReady, task);
 
     if (!found) {
-        found = traverse(&eb->TaskWait, task, nameBuffer);
+        found = traverse(&eb->TaskWait, task);
     }
 
     IExec->Enable();
@@ -181,9 +136,9 @@ static SampleInfo findTaskData(struct Task* task)
 {
     SampleInfo info;
 
-    char nameBuffer[NAME_LEN] = { 0 };
+    nameBuffer[0] = '\0';
 
-    BOOL found = traverseLists(task, nameBuffer);
+    BOOL found = traverseLists(task);
 
     if (!found) {
         if (task == mainTask) {
@@ -330,6 +285,13 @@ int main()
     back = samples[0];
     front = NULL;
 
+    nameBuffer = allocMem(4 * NAME_LEN);
+    cliNameBuffer = allocMem(4 * NAME_LEN);
+
+    if (!nameBuffer || !cliNameBuffer) {
+        goto quit;
+    }
+
     mainTask = IExec->FindTask(NULL);
     mainSig = IExec->AllocSignal(-1);
 
@@ -364,6 +326,9 @@ quit:
     }
 
     timerQuit(&sampler);
+
+    freeMem(nameBuffer);
+    freeMem(cliNameBuffer);
 
     freeMem(samples[0]);
     freeMem(samples[1]);

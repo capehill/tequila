@@ -1,6 +1,7 @@
+#include "timer.h"
+
 #include <proto/exec.h>
 #include <proto/dos.h>
-#include <proto/timer.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,14 +9,8 @@
 
 #define NAME_LEN 256
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (06.10.2019)";
+static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (09.10.2019)";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
-
-typedef struct TimerContext {
-    struct MsgPort* port;
-    struct TimeRequest* request;
-    BYTE device;
-} TimerContext;
 
 typedef struct Sample {
     struct Task* task;
@@ -68,130 +63,11 @@ static void freeMem(APTR address)
     IExec->FreeVec(address);
 }
 
-static void timerStart(struct TimeRequest * request, ULONG micros)
-{
-    if (!request) {
-        IExec->DebugPrintF("TimeRequest nullptr\n");
-        return;
-    }
-
-    if (micros == 0) {
-        IExec->DebugPrintF("Timer period 0\n");
-        return;
-    }
-
-    request->Request.io_Command = TR_ADDREQUEST;
-    request->Time.Seconds = 0;
-    request->Time.Microseconds = micros;
-
-    IExec->BeginIO((struct IORequest *)request);
-}
-
-static void timerQuit(TimerContext * ctx)
-{
-    if (!ctx) {
-        IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
-        return;
-    }
-
-    if (ctx->request) {
-        IExec->CloseDevice((struct IORequest *)ctx->request);
-        IExec->FreeSysObject(ASOT_IOREQUEST, ctx->request);
-        ctx->request = NULL;
-        ctx->device = -1;
-    }
-
-    if (ctx->port) {
-        IExec->FreeSysObject(ASOT_PORT, ctx->port);
-        ctx->port = NULL;
-    }
-}
-
-static BOOL timerInit(TimerContext * ctx, struct Interrupt * interrupt)
-{
-    if (!ctx) {
-        IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
-        return FALSE;
-    }
-
-    ctx->device = -1;
-    ctx->port = NULL;
-    ctx->request = NULL;
-
-    if (interrupt) {
-        ctx->port = (struct MsgPort *)IExec->AllocSysObjectTags(ASOT_PORT,
-            ASOPORT_Signal, FALSE,
-            ASOPORT_Action, PA_SOFTINT,
-            ASOPORT_Target, interrupt,
-            TAG_DONE);
-    } else {
-        ctx->port = (struct MsgPort *)IExec->AllocSysObjectTags(ASOT_PORT,
-            ASOPORT_Name, "Timer port",
-            TAG_DONE);
-    }
-
-    if (!ctx->port) {
-        puts("Failed to allocate timer port");
-        goto clean;
-    }
-
-    ctx->request = (struct TimeRequest *)IExec->AllocSysObjectTags(ASOT_IOREQUEST,
-        ASOIOR_Size, sizeof(struct TimeRequest),
-        ASOIOR_ReplyPort, ctx->port,
-        TAG_DONE);
-
-    if (!ctx->request) {
-        puts("Failed to allocate TimeRequest");
-        goto clean;
-    }
-
-    ctx->device = IExec->OpenDevice("timer.device", UNIT_MICROHZ, (struct IORequest *)ctx->request, 0);
-
-    if (ctx->device) {
-        puts("Failed to open timer.device");
-        goto clean;
-    }
-
-    return TRUE;
-
-clean:
-    timerQuit(ctx);
-
-    return FALSE;
-}
-
-static void timerWait(ULONG micros)
-{
-    TimerContext pauseTimer;
-
-    if (!timerInit(&pauseTimer, NULL)) {
-        puts("Failed to create timer");
-        return;
-    }
-
-    timerStart(pauseTimer.request, micros);
-
-    const uint32 timerSig = 1L << pauseTimer.port->mp_SigBit;
-
-    uint32 wait;
-    while ((wait = IExec->Wait(timerSig | SIGBREAKF_CTRL_C))) {
-        if (wait & timerSig) {
-            IExec->DebugPrintF("Timer finish\n");
-            IExec->GetMsg(pauseTimer.port);
-            break;
-        }
-
-        //puts("Stop pressing CTRL-C :)");
-    }
-
-    timerQuit(&pauseTimer);
-}
-
 static BOOL interruptAlive = FALSE;
 
 static void interruptCode()
 {
-    struct ExecBase *sysbase = (struct ExecBase *)SysBase;
+    struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
 
@@ -243,17 +119,17 @@ static size_t stringLen(const char* str)
     return len;
 }
 
-static void getCliName(struct Task *task, char * nameBuffer)
+static void getCliName(struct Task* task, char* nameBuffer)
 {
     if (IS_PROCESS(task)) {
-        struct CommandLineInterface *cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
+        struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
         if (cli) {
-            const char *commandName = (const char *)BADDR(cli->cli_CommandName);
+            const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
                 copyString(nameBuffer, " [", 2);
 
                 // BSTR
-                size_t len = *(UBYTE*)commandName;
+                size_t len = *(UBYTE *)commandName;
                 copyString(nameBuffer + stringLen(nameBuffer), commandName + 1, len);
                 copyString(nameBuffer + stringLen(nameBuffer), "]", 1);
             }
@@ -261,10 +137,10 @@ static void getCliName(struct Task *task, char * nameBuffer)
     }
 }
 
-static BOOL traverse(struct List *list, struct Task *target, char * nameBuffer)
+static BOOL traverse(struct List* list, struct Task* target, char* nameBuffer)
 {
-    for (struct Node *node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
-        struct Task *task = (struct Task*)node;
+    for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
+        struct Task* task = (struct Task *)node;
 
         if (task == target) {
             char cliNameBuffer[NAME_LEN] = { 0 };
@@ -284,9 +160,9 @@ static BOOL traverse(struct List *list, struct Task *target, char * nameBuffer)
     return FALSE;
 }
 
-static BOOL traverseLists(struct Task * task, char * nameBuffer)
+static BOOL traverseLists(struct Task* task, char* nameBuffer)
 {
-    struct ExecBase *eb = (struct ExecBase *)SysBase;
+    struct ExecBase* eb = (struct ExecBase *)SysBase;
 
     IExec->Disable();
 
@@ -301,7 +177,7 @@ static BOOL traverseLists(struct Task * task, char * nameBuffer)
     return found;
 }
 
-static SampleInfo findTaskData(struct Task * task)
+static SampleInfo findTaskData(struct Task* task)
 {
     SampleInfo info;
 
@@ -339,7 +215,7 @@ static int comparison(const void* first, const void* second)
     return 0;
 }
 
-static void showResults(SampleInfo * results)
+static void showResults(SampleInfo* results)
 {
     size_t unique = 0;
 
@@ -381,7 +257,7 @@ static void loop()
 {
     const uint32 signalMask = 1L << mainSig;
 
-    SampleInfo * results = allocMem(sizeof(SampleInfo) * freq);
+    SampleInfo* results = allocMem(sizeof(SampleInfo) * freq);
 
     if (!results) {
         puts("Failed to allocate memory");
@@ -406,9 +282,9 @@ static void loop()
 
 static BOOL parseArgs(void)
 {
-    const char * const pattern = "SAMPLES/N";
+    const char* const pattern = "SAMPLES/N";
 
-    struct RDArgs *result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
+    struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
     if (result) {
         if (params.samples) {
@@ -435,7 +311,7 @@ int main()
 {
     parseArgs();
 
-    struct Interrupt *interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
+    struct Interrupt* interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
         ASOINTR_Code, interruptCode,
         TAG_DONE);
 
@@ -476,6 +352,7 @@ int main()
     timerWait(1000000);
 
     while (interruptAlive) {
+        // TODO: not needed, probably
         puts("Waiting for interrupt handler");
     }
 

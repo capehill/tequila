@@ -1,14 +1,27 @@
 NAME = tequila
 
+CC = gcc
+CFLAGS = -Wall -Wextra -O3 -gstabs
+
+OBJS = profiler.o timer.o
+
 all: $(NAME)
 
-profiler.o: profiler.c
-	gcc -c $< -Wall -Wextra -O3 -gstabs
+%.o : %.c
+	$(CC) -c $< $(CFLAGS)
 
-$(NAME): profiler.o
-	gcc -o $@ $<
+#profiler.o: profiler.c
+#	 gcc -c $< $(CFLAGS)
+
+#timer.o: timer.c
+#    gcc -c $< $(CFLAGS)
+
+$(NAME): $(OBJS)
+	$(CC) -o $@ $(OBJS)
 
 strip:
 	strip $(NAME)
 
-
+clean:
+	delete $(NAME)
+	delete #?.o

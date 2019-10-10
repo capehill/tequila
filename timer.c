@@ -113,7 +113,7 @@ void timerWait(ULONG micros)
     uint32 wait;
     while ((wait = IExec->Wait(timerSig | SIGBREAKF_CTRL_C))) {
         if (wait & timerSig) {
-            IExec->DebugPrintF("Timer finish\n");
+            //IExec->DebugPrintF("Timer finish\n");
             IExec->GetMsg(pauseTimer.port);
             break;
         }

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (09.10.2019)";
+static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (10.10.2019)";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
 
 typedef struct Sample {
@@ -44,8 +44,6 @@ static Params params = { NULL };
 static ULONG period;
 static ULONG freq;
 
-static BOOL interruptAlive = FALSE;
-
 static void interruptCode()
 {
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
@@ -69,8 +67,6 @@ static void interruptCode()
 
     if (request && running) {
         timerStart(request, period);
-    } else {
-        interruptAlive = FALSE;
     }
 }
 
@@ -307,16 +303,10 @@ int main()
     running = TRUE;
 
     timerStart(sampler.request, period);
-    interruptAlive = TRUE;
 
     loop();
 
     timerWait(1000000);
-
-    while (interruptAlive) {
-        // TODO: not needed, probably
-        puts("Waiting for interrupt handler");
-    }
 
 quit:
 
@@ -329,6 +319,8 @@ quit:
 
     freeMem(nameBuffer);
     freeMem(cliNameBuffer);
+
+    nameBuffer = cliNameBuffer = NULL;
 
     freeMem(samples[0]);
     freeMem(samples[1]);

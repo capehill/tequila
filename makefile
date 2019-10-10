@@ -1,4 +1,4 @@
-NAME = tequila
+NAME = Tequila
 
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -gstabs

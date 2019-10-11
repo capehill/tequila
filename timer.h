@@ -9,10 +9,17 @@ typedef struct TimerContext {
     BYTE device;
 } TimerContext;
 
+typedef struct MyClock {
+    union {
+        uint64 ticks;
+        struct EClockVal clockVal;
+    };
+} MyClock;
 
 void timerStart(struct TimeRequest* request, ULONG micros);
 void timerQuit(TimerContext* ctx);
 BOOL timerInit(TimerContext* ctx, struct Interrupt* interrupt);
 void timerWait(ULONG micros);
+double ticksToMicros(uint64 ticks);
 
 #endif // TIMER_H

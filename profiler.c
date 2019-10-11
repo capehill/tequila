@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (10.10.2019)";
+static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (11.10.2019)";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
 
 typedef struct Sample {
@@ -38,21 +38,29 @@ static TimerContext sampler;
 
 typedef struct Params {
     LONG* samples;
+    LONG* interval;
 } Params;
 
-static Params params = { NULL };
+static Params params = { NULL, NULL };
 static ULONG period;
 static ULONG freq;
+static ULONG interval;
+
+static uint64 longest;
 
 static void interruptCode()
 {
+    struct MyClock start, finish;
+
+    ITimer->ReadEClock(&start.clockVal);
+
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
 
     back[counter].task = task;
 
-    if (++counter >= freq) {
+    if (++counter >= (freq * interval)) {
         static int flip = 0;
 
         counter = 0;
@@ -67,6 +75,13 @@ static void interruptCode()
 
     if (request && running) {
         timerStart(request, period);
+    }
+
+    ITimer->ReadEClock(&finish.clockVal);
+
+    const uint64 duration = finish.ticks - start.ticks;
+    if (duration > longest) {
+        longest = duration;
     }
 }
 
@@ -168,9 +183,12 @@ static int comparison(const void* first, const void* second)
 
 static void showResults(SampleInfo* results)
 {
+    MyClock start, finish;
+    ITimer->ReadEClock(&start.clockVal);
+
     size_t unique = 0;
 
-    for (size_t sample = 0; sample < freq; sample++) {
+    for (size_t sample = 0; sample < interval * freq; sample++) {
         struct Task* task = front[sample].task;
 
         BOOL found = FALSE;
@@ -194,21 +212,26 @@ static void showResults(SampleInfo* results)
 
     static unsigned round = 0;
 	
-    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz - [[ Control-C to quit ]]\n", 0x1B, round++, freq);
+    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds - [[ Control-C to quit ]]\n", 0x1B, round++, freq, interval);
     printf("%-40s %6s %10s\n", "Task name:", "CPU %", "Priority");
 
     for (size_t i = 0; i < unique; i++) {
-        const float cpu = 100.0f * results[i].count / freq;
+        const float cpu = 100.0f * results[i].count / (freq * interval);
 
         printf("%-40s %6.2f %10d\n", results[i].nameBuffer, cpu, results[i].priority);
     }
+
+    ITimer->ReadEClock(&finish.clockVal);
+
+    printf("\n...Data processing time %g us, longest interrupt %g us\n",
+        ticksToMicros(finish.ticks - start.ticks), ticksToMicros(longest));
 }
 
 static void loop()
 {
     const uint32 signalMask = 1L << mainSig;
 
-    SampleInfo* results = allocMem(sizeof(SampleInfo) * freq);
+    SampleInfo* results = allocMem(sizeof(SampleInfo) * freq * interval);
 
     if (!results) {
         puts("Failed to allocate memory");
@@ -231,9 +254,9 @@ static void loop()
     freeMem(results);
 }
 
-static BOOL parseArgs(void)
+static void parseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N";
+    const char* const pattern = "SAMPLES/N,INTERVAL/N";
 
     struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -241,21 +264,32 @@ static BOOL parseArgs(void)
         if (params.samples) {
             freq = *params.samples;
         }
+        if (params.interval) {
+            interval = *params.interval;
+        }
+
+        IDOS->FreeArgs(result);
+    } else {
+        printf("Supported arguments: %s\n", pattern);
     }
 
     if (freq < 99) {
         puts("Min freq 99 Hz");
         freq = 99;
-    }
-
-    if (freq > 10000) {
+    } else if (freq > 10000) {
         puts("Max freq 10000 Hz");
         freq = 10000;
     }
 
     period = 1000000 / freq;
 
-    return TRUE;
+    if (interval < 1) {
+        puts("Min interval 1");
+        interval = 1;
+    } else if (interval > 5) {
+        puts("Max interval 5");
+        interval = 5;
+    }
 }
 
 int main()
@@ -271,8 +305,8 @@ int main()
         goto quit;
     }
 
-    samples[0] = allocMem(freq * sizeof(Sample));
-    samples[1] = allocMem(freq * sizeof(Sample));
+    samples[0] = allocMem(interval * freq * sizeof(Sample));
+    samples[1] = allocMem(interval * freq * sizeof(Sample));
 
     if (!samples[0] || !samples[1]) {
         goto quit;

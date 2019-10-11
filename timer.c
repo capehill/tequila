@@ -5,6 +5,43 @@
 #include <proto/exec.h>
 #include <dos/dos.h>
 
+struct TimerIFace* ITimer;
+
+static ULONG frequency;
+
+static int users;
+
+static void getInterface(struct Device* device)
+{
+    if (!ITimer) {
+        ITimer = (struct TimerIFace *) IExec->GetInterface((struct Library *)device, "main", 1, NULL);
+
+        if (!ITimer) {
+            puts("Failed to get ITimer");
+            return;
+        }
+    }
+
+    users++;
+}
+
+static void getFrequency()
+{
+    if (!frequency) {
+        struct EClockVal val;
+        frequency = ITimer->ReadEClock(&val);
+        IExec->DebugPrintF("Clock frequency %lu ticks/second\n", frequency);
+    }
+}
+
+static void dropInterface() {
+    if (--users <= 0 && ITimer) {
+        IExec->DebugPrintF("ITimer user count %d, dropping it\n", users);
+        IExec->DropInterface((struct Interface *) ITimer);
+        ITimer = NULL;
+    }
+}
+
 void timerStart(struct TimeRequest* request, ULONG micros)
 {
     if (!request) {
@@ -30,6 +67,8 @@ void timerQuit(TimerContext* ctx)
         IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
         return;
     }
+
+    dropInterface();
 
     if (ctx->request) {
         IExec->CloseDevice((struct IORequest *)ctx->request);
@@ -89,6 +128,9 @@ BOOL timerInit(TimerContext* ctx, struct Interrupt* interrupt)
         goto clean;
     }
 
+    getInterface(ctx->request->Request.io_Device);
+    getFrequency();
+
     return TRUE;
 
 clean:
@@ -122,5 +164,10 @@ void timerWait(ULONG micros)
     }
 
     timerQuit(&pauseTimer);
+}
+
+double ticksToMicros(uint64 ticks)
+{
+    return 1000000.0 * ticks / (double)frequency;
 }
 

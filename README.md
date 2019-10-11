@@ -8,8 +8,8 @@ It was written for both fun and need; there aren't too many of such tools for Am
 
 ## Command-line params
 
-SAMPLES: 99 - 10000, meaning how often running task is sampled
-
+SAMPLES [99, 10000] - how often running task is sampled (Hz)
+INTERVAL [1, 5] - display update interval (seconds)
 
 ## License
 

@@ -20,12 +20,18 @@ typedef struct SampleInfo {
     struct Task* task;
     unsigned count;
     BYTE priority;
+    float stackUsage;
 } SampleInfo;
+
+typedef struct TaskInfo {
+    BYTE priority;
+    float stackUsage;
+} TaskInfo;
 
 static char* nameBuffer;
 static char* cliNameBuffer;
 
-static BYTE priority;
+static TaskInfo taskInfo;
 
 static Sample* samples[2];
 static Sample* front;
@@ -121,8 +127,12 @@ static BOOL traverse(struct List* list, struct Task* target)
                 copyString(nameBuffer + stringLen(nameBuffer), cliNameBuffer, stringLen(cliNameBuffer));
             }
 
-            priority = ((struct Node *)task)->ln_Pri;
+            taskInfo.priority = ((struct Node *)task)->ln_Pri;
 
+            const float totalStack = task->tc_SPUpper - task->tc_SPLower;
+            const float usedStack = task->tc_SPUpper - task->tc_SPReg;
+
+            taskInfo.stackUsage = 100.0f * usedStack / totalStack;
             return TRUE;
         }
     }
@@ -152,7 +162,8 @@ static SampleInfo findTaskData(struct Task* task)
     SampleInfo info;
 
     nameBuffer[0] = '\0';
-    priority = 0;
+    taskInfo.priority = 0;
+    taskInfo.stackUsage = 0.0f;
 
     BOOL found = traverseLists(task);
 
@@ -169,7 +180,8 @@ static SampleInfo findTaskData(struct Task* task)
 
     info.count = 1;
     info.task = task;
-    info.priority = priority;
+    info.priority = taskInfo.priority;
+    info.stackUsage = taskInfo.stackUsage;
 
     return info;
 }
@@ -217,12 +229,12 @@ static void showResults(SampleInfo* results)
     static unsigned round = 0;
 	
     printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds - [[ Control-C to quit ]]\n", 0x1B, round++, freq, interval);
-    printf("%-40s %6s %10s\n", "Task name:", "CPU %", "Priority");
+    printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 
     for (size_t i = 0; i < unique; i++) {
         const float cpu = 100.0f * results[i].count / (freq * interval);
 
-        printf("%-40s %6.2f %10d\n", results[i].nameBuffer, cpu, results[i].priority);
+        printf("%-40s %6.2f %10d %10.2f\n", results[i].nameBuffer, cpu, results[i].priority, results[i].stackUsage);
     }
 
     ITimer->ReadEClock(&finish.un.clockVal);

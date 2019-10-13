@@ -25,6 +25,8 @@ typedef struct SampleInfo {
 static char* nameBuffer;
 static char* cliNameBuffer;
 
+static BYTE priority;
+
 static Sample* samples[2];
 static Sample* front;
 static Sample* back;
@@ -52,7 +54,7 @@ static void interruptCode()
 {
     struct MyClock start, finish;
 
-    ITimer->ReadEClock(&start.clockVal);
+    ITimer->ReadEClock(&start.un.clockVal);
 
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
@@ -77,9 +79,9 @@ static void interruptCode()
         timerStart(request, period);
     }
 
-    ITimer->ReadEClock(&finish.clockVal);
+    ITimer->ReadEClock(&finish.un.clockVal);
 
-    const uint64 duration = finish.ticks - start.ticks;
+    const uint64 duration = finish.un.ticks - start.un.ticks;
     if (duration > longest) {
         longest = duration;
     }
@@ -119,6 +121,8 @@ static BOOL traverse(struct List* list, struct Task* target)
                 copyString(nameBuffer + stringLen(nameBuffer), cliNameBuffer, stringLen(cliNameBuffer));
             }
 
+            priority = ((struct Node *)task)->ln_Pri;
+
             return TRUE;
         }
     }
@@ -148,6 +152,7 @@ static SampleInfo findTaskData(struct Task* task)
     SampleInfo info;
 
     nameBuffer[0] = '\0';
+    priority = 0;
 
     BOOL found = traverseLists(task);
 
@@ -157,15 +162,14 @@ static SampleInfo findTaskData(struct Task* task)
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
-            info.priority = 0;
         }
     } else {
         snprintf(info.nameBuffer, NAME_LEN, nameBuffer);
-        info.priority = ((struct Node *)task)->ln_Pri;
     }
 
     info.count = 1;
     info.task = task;
+    info.priority = priority;
 
     return info;
 }
@@ -184,7 +188,7 @@ static int comparison(const void* first, const void* second)
 static void showResults(SampleInfo* results)
 {
     MyClock start, finish;
-    ITimer->ReadEClock(&start.clockVal);
+    ITimer->ReadEClock(&start.un.clockVal);
 
     size_t unique = 0;
 
@@ -221,10 +225,10 @@ static void showResults(SampleInfo* results)
         printf("%-40s %6.2f %10d\n", results[i].nameBuffer, cpu, results[i].priority);
     }
 
-    ITimer->ReadEClock(&finish.clockVal);
+    ITimer->ReadEClock(&finish.un.clockVal);
 
     printf("\n...Data processing time %g us, longest interrupt %g us\n",
-        ticksToMicros(finish.ticks - start.ticks), ticksToMicros(longest));
+        ticksToMicros(finish.un.ticks - start.un.ticks), ticksToMicros(longest));
 }
 
 static void loop()

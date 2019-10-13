@@ -13,7 +13,7 @@ typedef struct MyClock {
     union {
         uint64 ticks;
         struct EClockVal clockVal;
-    };
+    } un;
 } MyClock;
 
 void timerStart(struct TimeRequest* request, ULONG micros);

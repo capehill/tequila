@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (11.10.2019)";
+static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (13.10.2019)";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
 
 typedef struct Sample {
@@ -47,12 +47,15 @@ static TimerContext sampler;
 typedef struct Params {
     LONG* samples;
     LONG* interval;
+    LONG debug;
 } Params;
 
-static Params params = { NULL, NULL };
+static Params params = { NULL, NULL, 0 };
 static ULONG period;
 static ULONG freq;
 static ULONG interval;
+
+static BOOL debugMode = FALSE;
 
 static uint64 longest;
 
@@ -60,7 +63,9 @@ static void interruptCode()
 {
     struct MyClock start, finish;
 
-    ITimer->ReadEClock(&start.un.clockVal);
+    if (debugMode) {
+        ITimer->ReadEClock(&start.un.clockVal);
+    }
 
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
@@ -85,11 +90,13 @@ static void interruptCode()
         timerStart(request, period);
     }
 
-    ITimer->ReadEClock(&finish.un.clockVal);
+    if (debugMode) {
+        ITimer->ReadEClock(&finish.un.clockVal);
 
-    const uint64 duration = finish.un.ticks - start.un.ticks;
-    if (duration > longest) {
-        longest = duration;
+        const uint64 duration = finish.un.ticks - start.un.ticks;
+        if (duration > longest) {
+            longest = duration;
+        }
     }
 }
 
@@ -173,14 +180,15 @@ static SampleInfo findTaskData(struct Task* task)
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
+            info.priority = 0;
         }
     } else {
         snprintf(info.nameBuffer, NAME_LEN, nameBuffer);
+        info.priority = taskInfo.priority;
     }
 
     info.count = 1;
     info.task = task;
-    info.priority = taskInfo.priority;
     info.stackUsage = taskInfo.stackUsage;
 
     return info;
@@ -197,11 +205,8 @@ static int comparison(const void* first, const void* second)
     return 0;
 }
 
-static void showResults(SampleInfo* results)
+static size_t prepareResults(SampleInfo* results)
 {
-    MyClock start, finish;
-    ITimer->ReadEClock(&start.un.clockVal);
-
     size_t unique = 0;
 
     for (size_t sample = 0; sample < interval * freq; sample++) {
@@ -226,9 +231,53 @@ static void showResults(SampleInfo* results)
 
     qsort(results, unique, sizeof(SampleInfo), comparison);
 
+    return unique;
+}
+
+static char* getCpuState(float usage)
+{
+    if (usage >= 90.0f) {
+        return "BUSY";
+    } else if (usage >= 50.0f) {
+        return "HEAVY LOAD";
+    } else if (usage >= 5.0f) {
+        return "SOME LOAD";
+    }
+
+    return "IDLING";
+}
+
+static float getLoad(SampleInfo* results, size_t count)
+{
+    float idleCpu = 0.0f;
+
+    for (size_t i = 0; i < count; i++) {
+        if (strcmp(results[i].nameBuffer, "idle.task") == 0) {
+            idleCpu = 100.0f * results[i].count / (freq * interval);
+            break;
+        }
+    }
+
+    return 100.0f - idleCpu;
+}
+
+static void showResults(SampleInfo* results)
+{
+    MyClock start, finish;
+
+    if (debugMode) {
+        ITimer->ReadEClock(&start.un.clockVal);
+    }
+
+    const size_t unique = prepareResults(results);
+
+    const float usage = getLoad(results, unique);
+
     static unsigned round = 0;
 	
-    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds - [[ Control-C to quit ]]\n", 0x1B, round++, freq, interval);
+    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]\n",
+        0x1B, round++, freq, interval, getCpuState(usage));
+
     printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 
     for (size_t i = 0; i < unique; i++) {
@@ -237,10 +286,12 @@ static void showResults(SampleInfo* results)
         printf("%-40s %6.2f %10d %10.2f\n", results[i].nameBuffer, cpu, results[i].priority, results[i].stackUsage);
     }
 
-    ITimer->ReadEClock(&finish.un.clockVal);
+    if (debugMode) {
+        ITimer->ReadEClock(&finish.un.clockVal);
 
-    printf("\n...Data processing time %g us, longest interrupt %g us\n",
-        ticksToMicros(finish.un.ticks - start.un.ticks), ticksToMicros(longest));
+        printf("\nDEBUG: data processing time %g us, longest interrupt %g us\n",
+            ticksToMicros(finish.un.ticks - start.un.ticks), ticksToMicros(longest));
+    }
 }
 
 static void loop()
@@ -272,7 +323,7 @@ static void loop()
 
 static void parseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N,INTERVAL/N";
+    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S";
 
     struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -280,9 +331,12 @@ static void parseArgs(void)
         if (params.samples) {
             freq = *params.samples;
         }
+
         if (params.interval) {
             interval = *params.interval;
         }
+
+        debugMode = params.debug;
 
         IDOS->FreeArgs(result);
     } else {
@@ -348,7 +402,7 @@ int main()
 
     timerInit(&sampler, interrupt);
 
-    interrupt->is_Node.ln_Name = (char *)"Profiler";
+    interrupt->is_Node.ln_Name = (char *)"Tequila";
 
     running = TRUE;
 

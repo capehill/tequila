@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (13.10.2019)";
+static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (" __AMIGA_DATE__ ")";
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
 
 typedef struct Sample {

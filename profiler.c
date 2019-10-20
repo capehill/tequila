@@ -1,5 +1,6 @@
 #include "common.h"
 #include "timer.h"
+#include "symbols.h"
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -48,14 +49,16 @@ typedef struct Params {
     LONG* samples;
     LONG* interval;
     LONG debug;
+    LONG profile;
 } Params;
 
-static Params params = { NULL, NULL, 0 };
+static Params params = { NULL, NULL, 0, 0 };
 static ULONG period;
 static ULONG freq;
 static ULONG interval;
 
 static BOOL debugMode = FALSE;
+static BOOL profile = FALSE;
 
 static uint64 longest;
 
@@ -70,8 +73,21 @@ static void interruptCode()
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
+    static unsigned addressCounter = 0;
 
     back[counter].task = task;
+
+    if (profile) {
+        // TODO: Disable() needed?
+        uint32 *sp = task->tc_SPReg;
+        uint32 address = *(sp + 1);
+
+        addresses[addressCounter] = (ULONG *)address;
+
+        if (++addressCounter >= maxAddresses) {
+            addressCounter = 0;
+        }
+    }
 
     if (++counter >= (freq * interval)) {
         static int flip = 0;
@@ -313,8 +329,9 @@ static void loop()
         }
 
         if (wait & SIGBREAKF_CTRL_C) {
-            puts("...Adios!");
             running = FALSE;
+
+            puts("...Adios!");
         }
     }
 
@@ -323,7 +340,7 @@ static void loop()
 
 static void parseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S";
+    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S";
 
     struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -337,6 +354,7 @@ static void parseArgs(void)
         }
 
         debugMode = params.debug;
+        profile = params.profile;
 
         IDOS->FreeArgs(result);
     } else {
@@ -379,7 +397,19 @@ int main()
     samples[1] = allocMem(interval * freq * sizeof(Sample));
 
     if (!samples[0] || !samples[1]) {
+        puts("Failed to allocate sample buffers");
         goto quit;
+    }
+
+    if (profile) {
+        maxAddresses = 30 * freq;
+
+        addresses = allocMem(maxAddresses * sizeof(ULONG *));
+
+        if (!addresses) {
+            puts("Failed to allocate address buffer");
+            goto quit;
+        }
     }
 
     back = samples[0];
@@ -410,6 +440,10 @@ int main()
 
     loop();
 
+    if (profile) {
+        showSymbols();
+    }
+
     timerWait(1000000);
 
 quit:
@@ -428,8 +462,12 @@ quit:
 
     freeMem(samples[0]);
     freeMem(samples[1]);
-
     samples[0] = samples[1] = NULL;
+
+    if (profile) {
+        freeMem(addresses);
+        addresses = NULL;
+    }
 
     if (interrupt) {
         IExec->FreeSysObject(ASOT_INTERRUPT, interrupt);

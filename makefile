@@ -3,7 +3,7 @@ NAME = Tequila
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -gstabs
 AMIGADATE = $(shell date LFORMAT "%-d.%-m.%Y")
-OBJS = profiler.o timer.o common.o
+OBJS = profiler.o timer.o common.o symbols.o
 
 all: $(NAME)
 

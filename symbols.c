@@ -24,13 +24,13 @@ static void symbol(const ULONG* address, char* nameBuffer)
 {
     struct DebugSymbol* ds = IDebug->ObtainDebugSymbol(address, NULL);
 
-    nameBuffer[0] = '\0';
-
     if (ds) {
         //IExec->DebugPrintF("%s %s\n", ds->Name, ds->SourceFunctionName);
         //snprintf(nameBuffer, NAME_LEN, "%s %s %s %s", ds->Name, ds->SourceFileName, ds->SourceFunctionName, ds->SourceBaseName);
         snprintf(nameBuffer, NAME_LEN, "%s %s", ds->Name, ds->SourceFunctionName);
         IDebug->ReleaseDebugSymbol(ds);
+    } else {
+        snprintf(nameBuffer, NAME_LEN, "Not available");
     }
 }
 
@@ -114,12 +114,10 @@ static size_t prepareSymbols(SymbolInfo* symbols)
 
     freeMem(symbolNameBuffer);
 
-    if (IDebug) {
-        IExec->DropInterface((struct Interface *)IDebug);
-        IDebug = NULL;
-    }
+    IExec->DropInterface((struct Interface *)IDebug);
+    IDebug = NULL;
 
-    printf("Found %u unique and %u valid symbols\n", unique, validSymbols);
+    printf("Found %u unique and %u non-zero symbols\n", unique, validSymbols);
 
     return unique;
 }

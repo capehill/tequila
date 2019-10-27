@@ -11,6 +11,7 @@ APTR allocMem(size_t size)
 
     APTR address = IExec->AllocVecTags(size,
         AVT_ClearWithValue, 0,
+        AVT_Type, MEMF_PRIVATE,
         TAG_DONE);
 
     if (!address) {

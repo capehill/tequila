@@ -15,7 +15,7 @@ APTR allocMem(size_t size)
         TAG_DONE);
 
     if (!address) {
-        IExec->DebugPrintF("%s: failed to allocate %lu bytes\n", size);
+        IExec->DebugPrintF("%s: failed to allocate %lu bytes\n", __func__, size);
     }
 
     return address;

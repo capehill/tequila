@@ -20,13 +20,13 @@ typedef struct SampleInfo {
     char nameBuffer[NAME_LEN];
     struct Task* task;
     unsigned count;
-    BYTE priority;
     float stackUsage;
+    BYTE priority;
 } SampleInfo;
 
 typedef struct TaskInfo {
-    BYTE priority;
     float stackUsage;
+    BYTE priority;
 } TaskInfo;
 
 static char* nameBuffer;
@@ -69,15 +69,16 @@ static void interruptCode()
     if (debugMode) {
         ITimer->ReadEClock(&start.un.clockVal);
     }
-
+//IExec->Disable();
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
-    static unsigned addressCounter = 0;
 
     back[counter].task = task;
 
     if (profile) {
+        static unsigned addressCounter = 0;
+
         // TODO: Disable() needed?
         uint32 *sp = task->tc_SPReg;
         uint32 address = *(sp + 1);
@@ -88,7 +89,7 @@ static void interruptCode()
             addressCounter = 0;
         }
     }
-
+//IExec->Enable();
     if (++counter >= (freq * interval)) {
         static int flip = 0;
 
@@ -150,7 +151,7 @@ static BOOL traverse(struct List* list, struct Task* target)
                 copyString(nameBuffer + stringLen(nameBuffer), cliNameBuffer, stringLen(cliNameBuffer));
             }
 
-            taskInfo.priority = ((struct Node *)task)->ln_Pri;
+            taskInfo.priority = node->ln_Pri;
 
             const float totalStack = task->tc_SPUpper - task->tc_SPLower;
             const float usedStack = task->tc_SPUpper - task->tc_SPReg;
@@ -180,7 +181,7 @@ static BOOL traverseLists(struct Task* task)
     return found;
 }
 
-static SampleInfo findTaskData(struct Task* task)
+static SampleInfo initializeTaskData(struct Task* task)
 {
     SampleInfo info;
 
@@ -188,11 +189,11 @@ static SampleInfo findTaskData(struct Task* task)
     taskInfo.priority = 0;
     taskInfo.stackUsage = 0.0f;
 
-    BOOL found = traverseLists(task);
+    const BOOL found = traverseLists(task);
 
     if (!found) {
         if (task == mainTask) {
-            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this process)");
+            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this task)");
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
@@ -240,7 +241,7 @@ static size_t prepareResults(SampleInfo* results)
         }
 
         if (!found) {
-            results[unique] = findTaskData(task);
+            results[unique] = initializeTaskData(task);
             unique++;
         }
     }
@@ -250,7 +251,7 @@ static size_t prepareResults(SampleInfo* results)
     return unique;
 }
 
-static char* getCpuState(float usage)
+static char* getCpuState(const float usage)
 {
     if (usage >= 90.0f) {
         return "BUSY";
@@ -263,7 +264,7 @@ static char* getCpuState(float usage)
     return "IDLING";
 }
 
-static float getLoad(SampleInfo* results, size_t count)
+static float getLoad(SampleInfo* results, const size_t count)
 {
     float idleCpu = 0.0f;
 
@@ -338,7 +339,7 @@ static void loop()
     freeMem(results);
 }
 
-static void parseArgs(void)
+static void parseArgs()
 {
     const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S";
 

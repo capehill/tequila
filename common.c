@@ -2,7 +2,7 @@
 
 #include <proto/exec.h>
 
-APTR allocMem(size_t size)
+APTR allocMem(const size_t size)
 {
     if (!size) {
         IExec->DebugPrintF("%s: 0 size alloc\n", __func__);
@@ -47,7 +47,7 @@ size_t stringLen(const char* str)
     return len;
 }
 
-void copyString(char* const to, const char* const from, size_t len)
+void copyString(char* const to, const char* const from, const size_t len)
 {
     if (to && from && len > 0) {
         const size_t need = stringLen(to) + len;

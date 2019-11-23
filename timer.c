@@ -42,7 +42,7 @@ static void dropInterface() {
     }
 }
 
-void timerStart(struct TimeRequest* request, ULONG micros)
+void timerStart(struct TimeRequest* request, const ULONG micros)
 {
     if (!request) {
         IExec->DebugPrintF("TimeRequest nullptr\n");
@@ -139,7 +139,7 @@ clean:
     return FALSE;
 }
 
-void timerWait(ULONG micros)
+void timerWait(const ULONG micros)
 {
     TimerContext pauseTimer;
 
@@ -166,7 +166,7 @@ void timerWait(ULONG micros)
     timerQuit(&pauseTimer);
 }
 
-double ticksToMicros(uint64 ticks)
+double ticksToMicros(const uint64 ticks)
 {
     return 1000000.0 * ticks / (double)frequency;
 }

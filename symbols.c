@@ -48,7 +48,7 @@ static void maybeLookup(ULONG* address, SymbolInfo* symbolInfo)
     }
 }
 
-static BOOL findSymbol(ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, size_t unique)
+static BOOL findSymbol(const ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, const size_t unique)
 {
     for (size_t u = 0; u < unique; u++) {
         if (address == symbols[u].address ||
@@ -138,7 +138,7 @@ static int compareCounts(const void* first, const void* second)
     return 0;
 }
 
-static size_t prepareModules(SymbolInfo* symbols, size_t unique, char** moduleNames)
+static size_t prepareModules(SymbolInfo* symbols, const size_t unique, char** moduleNames)
 {
     size_t uniqueModules = 0;
 
@@ -154,14 +154,18 @@ static size_t prepareModules(SymbolInfo* symbols, size_t unique, char** moduleNa
 
         if (!found) {
             moduleNames[uniqueModules] = strdup(symbols[i].moduleName);
-            uniqueModules++;
+            if (moduleNames[uniqueModules]) {
+                uniqueModules++;
+            } else {
+                puts("Failed to duplicate module name");
+            }
         }
     }
 
     return uniqueModules;
 }
 
-static void showByModule(struct SymbolInfo* symbols, size_t unique)
+static void showByModule(struct SymbolInfo* symbols, const size_t unique)
 {
     char** moduleNames = allocMem(unique * sizeof(char *));
 

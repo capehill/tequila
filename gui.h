@@ -1,6 +1,6 @@
 #ifndef GUI_H
 #define GUI_H
 
-void guiLoop(void);
+void GuiLoop(void);
 
 #endif

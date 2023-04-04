@@ -92,7 +92,7 @@ static void CloseClasses()
     IIntuition->CloseClass(LayoutBase);
 }
 
-static char* getApplicationName()
+static char* GetApplicationName()
 {
     #define maxPathLen 255
 
@@ -112,16 +112,16 @@ static char* getApplicationName()
     return pathBuffer;
 }
 
-static struct DiskObject* getDiskObject()
+static struct DiskObject* MyGetDiskObject()
 {
     BPTR oldDir = IDOS->SetCurrentDir(IDOS->GetProgramDir());
-    struct DiskObject* diskObject = IIcon->GetDiskObject(getApplicationName());
+    struct DiskObject* diskObject = IIcon->GetDiskObject(GetApplicationName());
     IDOS->SetCurrentDir(oldDir);
 
     return diskObject;
 }
 
-static void show_about_window()
+static void ShowAboutWindow()
 {
     objects[OID_AboutWindow] = IIntuition->NewObject(RequesterClass, NULL,
         REQ_TitleText, "About Tequila",
@@ -139,7 +139,7 @@ static void show_about_window()
     }
 }
 
-static Object* create_gui()
+static Object* CreateGui()
 {
     columnInfo = IListBrowser->AllocLBColumnInfo(4,
                                                  LBCIA_Column, 0,
@@ -182,7 +182,7 @@ static Object* create_gui()
         WA_Height, 480,
         WINDOW_Position, WPOS_CENTERMOUSE,
         WINDOW_IconifyGadget, TRUE,
-        WINDOW_Icon, getDiskObject(),
+        WINDOW_Icon, MyGetDiskObject(),
         WINDOW_AppPort, port, // Iconification needs it
         WINDOW_GadgetHelp, TRUE,
         WINDOW_NewMenu, menus,
@@ -212,23 +212,23 @@ static Object* create_gui()
         TAG_DONE); // window.class
 }
 
-static void handle_gadgets(int id)
+static void HandleGadgets(int id)
 {
     printf("Gadget %d\n", id);
 }
 
-static void handle_iconify(void)
+static void HandleIconify(void)
 {
     window = NULL;
     IIntuition->IDoMethod(objects[OID_Window], WM_ICONIFY);
 }
 
-static void handle_uniconify(void)
+static void HandleUniconify(void)
 {
     window = (struct Window *)IIntuition->IDoMethod(objects[OID_Window], WM_OPEN);
 }
 
-static BOOL handle_menupick(uint16 menuNumber)
+static BOOL HandleMenupick(uint16 menuNumber)
 {
     struct MenuItem* item = IIntuition->ItemAddress(window->MenuStrip, menuNumber);
 
@@ -236,8 +236,8 @@ static BOOL handle_menupick(uint16 menuNumber)
         const EMenu id = (EMenu)GTMENUITEM_USERDATA(item);
         //printf("menu %x, menu num %d, item num %d, userdata %d\n", menuNumber, MENUNUM(menuNumber), ITEMNUM(menuNumber), (EMenu)GTMENUITEM_USERDATA(item));
         switch (id) {
-            case MID_Iconify: handle_iconify(); break;
-            case MID_About: show_about_window(); break;
+            case MID_Iconify: HandleIconify(); break;
+            case MID_About: ShowAboutWindow(); break;
             case MID_Quit: return FALSE;
         }
     }
@@ -245,9 +245,9 @@ static BOOL handle_menupick(uint16 menuNumber)
     return TRUE;
 }
 
-static void updateDisplay(void)
+static void UpdateDisplay(void)
 {
-    const size_t unique = prepareResults();
+    const size_t unique = PrepareResults();
     const size_t max = unique > MAX_NODES ? MAX_NODES : unique;
 
     //const float usage = getLoad(unique);
@@ -290,7 +290,7 @@ static void updateDisplay(void)
                                       TAG_DONE);
 }
 
-static void handle_events(void)
+static void HandleEvents(void)
 {
     uint32 signal = 0;
     IIntuition->GetAttr(WINDOW_SigMask, objects[OID_Window], &signal);
@@ -311,34 +311,35 @@ static void handle_events(void)
             uint32 result;
             int16 code = 0;
 
+            // TODO: handle keys, like ESC
             while ((result = IIntuition->IDoMethod(objects[OID_Window], WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
                 switch (result & WMHI_CLASSMASK) {
                     case WMHI_CLOSEWINDOW:
                         running = FALSE;
                         break;
                     case WMHI_GADGETUP:
-                        handle_gadgets(result & WMHI_GADGETMASK);
+                        HandleGadgets(result & WMHI_GADGETMASK);
                         break;
                     case WMHI_ICONIFY:
-                        handle_iconify();
+                        HandleIconify();
                         break;
                     case WMHI_UNICONIFY:
-                        handle_uniconify();
+                        HandleUniconify();
                         break;
                     case WMHI_MENUPICK:
-                        running = handle_menupick(result & WMHI_MENUMASK);
+                        running = HandleMenupick(result & WMHI_MENUMASK);
                         break;
                 }
             }
         }
 
         if (wait & timerSignal) {
-            updateDisplay();
+            UpdateDisplay();
         }
     }
 }
 
-void guiLoop(void)
+void GuiLoop(void)
 {
     if (OpenClasses()) {
         // TODO: port declaration
@@ -350,11 +351,11 @@ void guiLoop(void)
             puts("Failed to open msg port");
         }
 
-        objects[OID_Window] = create_gui();
+        objects[OID_Window] = CreateGui();
 
         if (objects[OID_Window]) {
             if ((window = (struct Window *)IIntuition->IDoMethod(objects[OID_Window], WM_OPEN))) {
-                handle_events();
+                HandleEvents();
             } else {
                 puts("Failed to open window");
             }

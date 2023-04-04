@@ -16,10 +16,10 @@ typedef struct MyClock {
     } un;
 } MyClock;
 
-void timerStart(struct TimeRequest* request, ULONG micros);
-void timerQuit(TimerContext* ctx);
-BOOL timerInit(TimerContext* ctx, struct Interrupt* interrupt);
-void timerWait(ULONG micros);
-double ticksToMicros(uint64 ticks);
+void TimerStart(struct TimeRequest* request, ULONG micros);
+void TimerQuit(TimerContext* ctx);
+BOOL TimerInit(TimerContext* ctx, struct Interrupt* interrupt);
+void TimerWait(ULONG micros);
+double TicksToMicros(uint64 ticks);
 
 #endif // TIMER_H

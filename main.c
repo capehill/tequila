@@ -25,7 +25,7 @@ static Params params = { NULL, NULL, 0, 0, 0 };
 
 Context ctx;
 
-static void parseArgs(void)
+static void ParseArgs(void)
 {
     const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S,GUI/S";
 
@@ -68,14 +68,14 @@ static void parseArgs(void)
     }
 }
 
-static BOOL initContext()
+static BOOL InitContext()
 {
     ctx.mainSig = -1;
 
-    parseArgs();
+    ParseArgs();
 
     ctx.interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
-        ASOINTR_Code, interruptCode,
+        ASOINTR_Code, InterruptCode,
         TAG_DONE);
 
     if (!ctx.interrupt) {
@@ -83,15 +83,15 @@ static BOOL initContext()
         return FALSE;
     }
 
-    ctx.sampleBuffers[0] = allocMem(ctx.interval * ctx.samples * sizeof(Sample));
-    ctx.sampleBuffers[1] = allocMem(ctx.interval * ctx.samples * sizeof(Sample));
+    ctx.sampleBuffers[0] = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
+    ctx.sampleBuffers[1] = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
 
     if (!ctx.sampleBuffers[0] || !ctx.sampleBuffers[1]) {
         puts("Failed to allocate sample buffers");
         return FALSE;
     }
 
-    ctx.sampleInfo = allocMem(ctx.interval * ctx.samples * sizeof(SampleInfo));
+    ctx.sampleInfo = AllocateMemory(ctx.interval * ctx.samples * sizeof(SampleInfo));
 
     if (!ctx.sampleInfo) {
         puts("Failed to allocate sample info buffer");
@@ -100,7 +100,7 @@ static BOOL initContext()
 
     if (ctx.profile) {
         ctx.maxAddresses = 30 * ctx.samples;
-        ctx.addresses = allocMem(ctx.maxAddresses * sizeof(ULONG *));
+        ctx.addresses = AllocateMemory(ctx.maxAddresses * sizeof(ULONG *));
 
         if (!ctx.addresses) {
             puts("Failed to allocate address buffer");
@@ -111,8 +111,8 @@ static BOOL initContext()
     ctx.back = ctx.sampleBuffers[0];
     ctx.front = NULL;
 
-    ctx.nameBuffer = allocMem(4 * NAME_LEN);
-    ctx.cliNameBuffer = allocMem(4 * NAME_LEN);
+    ctx.nameBuffer = AllocateMemory(4 * NAME_LEN);
+    ctx.cliNameBuffer = AllocateMemory(4 * NAME_LEN);
 
     if (!ctx.nameBuffer || !ctx.cliNameBuffer) {
         return FALSE;
@@ -126,39 +126,39 @@ static BOOL initContext()
         return FALSE;
     }
 
-    timerInit(&ctx.sampler, ctx.interrupt);
+    TimerInit(&ctx.sampler, ctx.interrupt);
 
     ctx.interrupt->is_Node.ln_Name = (char *)"Tequila";
     ctx.running = TRUE;
 
-    timerStart(ctx.sampler.request, ctx.period);
+    TimerStart(ctx.sampler.request, ctx.period);
 
     return TRUE;
 }
 
-static void cleanupContext()
+static void CleanupContext()
 {
     if (ctx.mainSig != -1) {
         IExec->FreeSignal(ctx.mainSig);
         ctx.mainSig = -1;
     }
 
-    timerQuit(&ctx.sampler);
+    TimerQuit(&ctx.sampler);
 
-    freeMem(ctx.nameBuffer);
-    freeMem(ctx.cliNameBuffer);
+    FreeMemory(ctx.nameBuffer);
+    FreeMemory(ctx.cliNameBuffer);
 
     ctx.nameBuffer = ctx.cliNameBuffer = NULL;
 
-    freeMem(ctx.sampleInfo);
-    freeMem(ctx.sampleBuffers[0]);
-    freeMem(ctx.sampleBuffers[1]);
+    FreeMemory(ctx.sampleInfo);
+    FreeMemory(ctx.sampleBuffers[0]);
+    FreeMemory(ctx.sampleBuffers[1]);
 
     ctx.sampleInfo = NULL;
     ctx.sampleBuffers[0] = ctx.sampleBuffers[1] = NULL;
 
     if (ctx.profile) {
-        freeMem(ctx.addresses);
+        FreeMemory(ctx.addresses);
         ctx.addresses = NULL;
     }
 
@@ -170,21 +170,21 @@ static void cleanupContext()
 
 int main(int /*argc*/, char** /*argv*/)
 {
-    if (initContext()) {
+    if (InitContext()) {
         if (ctx.gui) {
-            guiLoop();
+            GuiLoop();
         } else {
-            shellLoop();
+            ShellLoop();
         }
 
         if (ctx.profile) {
-            showSymbols();
+            ShowSymbols();
         }
 
-        timerWait(1000000);
+        TimerWait(1000000);
     }
 
-    cleanupContext();
+    CleanupContext();
 
     return 0;
 }

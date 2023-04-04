@@ -3,8 +3,8 @@
 
 #include <stddef.h>
 
-void interruptCode(void);
-void shellLoop(void);
-size_t prepareResults(void);
+void InterruptCode(void);
+void ShellLoop(void);
+size_t PrepareResults(void);
 
 #endif

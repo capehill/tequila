@@ -57,10 +57,10 @@ typedef struct Context {
 
 extern Context ctx;
 
-APTR allocMem(size_t size);
-void freeMem(APTR address);
-size_t stringLen(const char* str);
-void copyString(char* const to, const char* const from, size_t len);
+APTR AllocateMemory(size_t size);
+void FreeMemory(APTR address);
+size_t StringLen(const char* str);
+void CopyString(char* const to, const char* const from, size_t len);
 
 #endif
 

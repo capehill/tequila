@@ -12,7 +12,7 @@
 
 static uint64 longest;
 
-void interruptCode(void)
+void InterruptCode(void)
 {
     struct MyClock start, finish;
 
@@ -62,7 +62,7 @@ void interruptCode(void)
     struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(ctx.sampler.port);
 
     if (request && ctx.running) {
-        timerStart(request, ctx.period);
+        TimerStart(request, ctx.period);
     }
 
     if (ctx.debugMode) {
@@ -75,7 +75,7 @@ void interruptCode(void)
     }
 }
 
-static void getCliName(struct Task* task)
+static void GetCliName(struct Task* task)
 {
     ctx.cliNameBuffer[0] = '\0';
 
@@ -84,29 +84,29 @@ static void getCliName(struct Task* task)
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
-                copyString(ctx.cliNameBuffer, " [", 2);
+                CopyString(ctx.cliNameBuffer, " [", 2);
 
                 // BSTR
                 size_t len = *(UBYTE *)commandName;
-                copyString(ctx.cliNameBuffer + stringLen(ctx.cliNameBuffer), commandName + 1, len);
-                copyString(ctx.cliNameBuffer + stringLen(ctx.cliNameBuffer), "]", 1);
+                CopyString(ctx.cliNameBuffer + StringLen(ctx.cliNameBuffer), commandName + 1, len);
+                CopyString(ctx.cliNameBuffer + StringLen(ctx.cliNameBuffer), "]", 1);
             }
         }
     }
 }
 
-static BOOL traverse(struct List* list, struct Task* target)
+static BOOL Traverse(struct List* list, struct Task* target)
 {
     for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
         struct Task* task = (struct Task *)node;
 
         if (task == target) {
-            getCliName(task);
+            GetCliName(task);
 
-            copyString(ctx.nameBuffer, node->ln_Name, stringLen(node->ln_Name));
+            CopyString(ctx.nameBuffer, node->ln_Name, StringLen(node->ln_Name));
 
-            if (stringLen(ctx.cliNameBuffer) > 0) {
-                copyString(ctx.nameBuffer + stringLen(ctx.nameBuffer), ctx.cliNameBuffer, stringLen(ctx.cliNameBuffer));
+            if (StringLen(ctx.cliNameBuffer) > 0) {
+                CopyString(ctx.nameBuffer + StringLen(ctx.nameBuffer), ctx.cliNameBuffer, StringLen(ctx.cliNameBuffer));
             }
 
             ctx.taskInfo.priority = node->ln_Pri;
@@ -122,16 +122,16 @@ static BOOL traverse(struct List* list, struct Task* target)
     return FALSE;
 }
 
-static BOOL traverseLists(struct Task* task)
+static BOOL TraverseLists(struct Task* task)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
 
     IExec->Disable();
 
-    BOOL found = traverse(&eb->TaskReady, task);
+    BOOL found = Traverse(&eb->TaskReady, task);
 
     if (!found) {
-        found = traverse(&eb->TaskWait, task);
+        found = Traverse(&eb->TaskWait, task);
     }
 
     IExec->Enable();
@@ -139,7 +139,7 @@ static BOOL traverseLists(struct Task* task)
     return found;
 }
 
-static SampleInfo initializeTaskData(struct Task* task)
+static SampleInfo InitializeTaskData(struct Task* task)
 {
     SampleInfo info;
 
@@ -147,7 +147,7 @@ static SampleInfo initializeTaskData(struct Task* task)
     ctx.taskInfo.priority = 0;
     ctx.taskInfo.stackUsage = 0.0f;
 
-    const BOOL found = traverseLists(task);
+    const BOOL found = TraverseLists(task);
 
     if (!found) {
         if (task == ctx.mainTask) {
@@ -169,7 +169,7 @@ static SampleInfo initializeTaskData(struct Task* task)
     return info;
 }
 
-static int comparison(const void* first, const void* second)
+static int Comparison(const void* first, const void* second)
 {
     const SampleInfo* a = first;
     const SampleInfo* b = second;
@@ -180,7 +180,7 @@ static int comparison(const void* first, const void* second)
     return 0;
 }
 
-size_t prepareResults(void)
+size_t PrepareResults(void)
 {
     size_t unique = 0;
 
@@ -199,17 +199,17 @@ size_t prepareResults(void)
         }
 
         if (!found) {
-            ctx.sampleInfo[unique] = initializeTaskData(task);
+            ctx.sampleInfo[unique] = InitializeTaskData(task);
             unique++;
         }
     }
 
-    qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), comparison);
+    qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), Comparison);
 
     return unique;
 }
 
-static char* getCpuState(const float usage)
+static char* GetCpuState(const float usage)
 {
     if (usage >= 90.0f) {
         return "BUSY";
@@ -222,7 +222,7 @@ static char* getCpuState(const float usage)
     return "IDLING";
 }
 
-static float getLoad(const size_t count)
+static float GetLoad(const size_t count)
 {
     float idleCpu = 0.0f;
 
@@ -236,7 +236,7 @@ static float getLoad(const size_t count)
     return 100.0f - idleCpu;
 }
 
-static void showResults(void)
+static void ShowResults(void)
 {
     MyClock start, finish;
 
@@ -244,13 +244,13 @@ static void showResults(void)
         ITimer->ReadEClock(&start.un.clockVal);
     }
 
-    const size_t unique = prepareResults();
-    const float usage = getLoad(unique);
+    const size_t unique = PrepareResults();
+    const float usage = GetLoad(unique);
 
     static unsigned round = 0;
 	
     printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]\n",
-        0x1B, round++, ctx.samples, ctx.interval, getCpuState(usage));
+        0x1B, round++, ctx.samples, ctx.interval, GetCpuState(usage));
 
     printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 
@@ -264,11 +264,11 @@ static void showResults(void)
         ITimer->ReadEClock(&finish.un.clockVal);
 
         printf("\nDEBUG: data processing time %g us, longest interrupt %g us\n",
-            ticksToMicros(finish.un.ticks - start.un.ticks), ticksToMicros(longest));
+            TicksToMicros(finish.un.ticks - start.un.ticks), TicksToMicros(longest));
     }
 }
 
-void shellLoop(void)
+void ShellLoop(void)
 {
     const uint32 signalMask = 1L << ctx.mainSig;
 
@@ -276,7 +276,7 @@ void shellLoop(void)
         const uint32 wait = IExec->Wait(signalMask | SIGBREAKF_CTRL_C);
 
         if (wait & signalMask) {
-            showResults();
+            ShowResults();
         }
 
         if (wait & SIGBREAKF_CTRL_C) {

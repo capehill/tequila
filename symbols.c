@@ -18,7 +18,7 @@ typedef struct SymbolInfo {
     char functionName[NAME_LEN];
 } SymbolInfo;
 
-static void symbol(const ULONG* address, SymbolInfo* symbolInfo)
+static void Symbol(const ULONG* address, SymbolInfo* symbolInfo)
 {
     struct DebugSymbol* ds = IDebug->ObtainDebugSymbol(address, NULL);
 
@@ -36,18 +36,18 @@ static void symbol(const ULONG* address, SymbolInfo* symbolInfo)
 
 static size_t validSymbols = 0;
 
-static void maybeLookup(ULONG* address, SymbolInfo* symbolInfo)
+static void MaybeLookup(ULONG* address, SymbolInfo* symbolInfo)
 {
     static ULONG* lastAddress = NULL;
 
     // Try to avoid unnecessary symbol lookups
     if (address != lastAddress) {
-        symbol(address, symbolInfo);
+        Symbol(address, symbolInfo);
         lastAddress = address;
     }
 }
 
-static BOOL findSymbol(const ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, const size_t unique)
+static BOOL FindSymbol(const ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, const size_t unique)
 {
     for (size_t u = 0; u < unique; u++) {
         if (address == symbols[u].address ||
@@ -62,7 +62,7 @@ static BOOL findSymbol(const ULONG* address, SymbolInfo* symbols, SymbolInfo* sy
     return FALSE;
 }
 
-static size_t addSymbol(ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, size_t unique)
+static size_t AddSymbol(ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolInfoBuffer, size_t unique)
 {
     strcpy(symbols[unique].moduleName, symbolInfoBuffer->moduleName); // TODO: take buffer size into account
     strcpy(symbols[unique].functionName, symbolInfoBuffer->functionName); // TODO: take buffer size into account
@@ -71,7 +71,7 @@ static size_t addSymbol(ULONG* address, SymbolInfo* symbols, SymbolInfo* symbolI
     return ++unique;
 }
 
-static size_t prepareSymbols(SymbolInfo* symbols)
+static size_t PrepareSymbols(SymbolInfo* symbols)
 {
     size_t unique = 0;
 
@@ -82,7 +82,7 @@ static size_t prepareSymbols(SymbolInfo* symbols)
         return 0;
     }
 
-    SymbolInfo* symbolInfo = allocMem(sizeof(SymbolInfo));
+    SymbolInfo* symbolInfo = AllocateMemory(sizeof(SymbolInfo));
     if (!symbolInfo) {
         puts("Failed to allocate symbol info buffer");
         return 0;
@@ -107,16 +107,16 @@ static size_t prepareSymbols(SymbolInfo* symbols)
             nextMark += part;
         }
 
-        maybeLookup(currAddress, symbolInfo);
+        MaybeLookup(currAddress, symbolInfo);
 
-        const BOOL found = findSymbol(currAddress, symbols, symbolInfo, unique);
+        const BOOL found = FindSymbol(currAddress, symbols, symbolInfo, unique);
 
         if (!found && unique < MAX_SYMBOLS) {
-            unique = addSymbol(currAddress, symbols, symbolInfo, unique);
+            unique = AddSymbol(currAddress, symbols, symbolInfo, unique);
         }
     }
 
-    freeMem(symbolInfo);
+    FreeMemory(symbolInfo);
 
     IExec->DropInterface((struct Interface *)IDebug);
     IDebug = NULL;
@@ -126,7 +126,7 @@ static size_t prepareSymbols(SymbolInfo* symbols)
     return unique;
 }
 
-static int compareCounts(const void* first, const void* second)
+static int CompareCounts(const void* first, const void* second)
 {
     const SymbolInfo* a = first;
     const SymbolInfo* b = second;
@@ -137,7 +137,7 @@ static int compareCounts(const void* first, const void* second)
     return 0;
 }
 
-static size_t prepareModules(SymbolInfo* symbols, const size_t unique, char** moduleNames)
+static size_t PrepareModules(SymbolInfo* symbols, const size_t unique, char** moduleNames)
 {
     size_t uniqueModules = 0;
 
@@ -164,16 +164,16 @@ static size_t prepareModules(SymbolInfo* symbols, const size_t unique, char** mo
     return uniqueModules;
 }
 
-static void showByModule(struct SymbolInfo* symbols, const size_t unique)
+static void ShowByModule(struct SymbolInfo* symbols, const size_t unique)
 {
-    char** moduleNames = allocMem(unique * sizeof(char *));
+    char** moduleNames = AllocateMemory(unique * sizeof(char *));
 
     if (!moduleNames) {
         puts("Failed to allocate module name buffer");
         return;
     }
 
-    const size_t uniqueModules = prepareModules(symbols, unique, moduleNames);
+    const size_t uniqueModules = PrepareModules(symbols, unique, moduleNames);
 
     printf("\nSorted by module:\n");
 
@@ -190,23 +190,23 @@ static void showByModule(struct SymbolInfo* symbols, const size_t unique)
         free(moduleNames[m]);
     }
 
-    freeMem(moduleNames);
+    FreeMemory(moduleNames);
 }
 
-void showSymbols()
+void ShowSymbols()
 {
-    SymbolInfo* symbols = allocMem(sizeof(SymbolInfo) * MAX_SYMBOLS);
+    SymbolInfo* symbols = AllocateMemory(sizeof(SymbolInfo) * MAX_SYMBOLS);
 
     if (!symbols) {
         puts("Failed to allocate symbol buffer");
         return;
     }
 
-    const size_t unique = prepareSymbols(symbols);
+    const size_t unique = PrepareSymbols(symbols);
 
     puts("Sorting symbols...");
 
-    qsort(symbols, unique, sizeof(SymbolInfo), compareCounts);
+    qsort(symbols, unique, sizeof(SymbolInfo), CompareCounts);
 
     printf("\n%10s %10s %64s\n", "Sample %", "Count", "Symbol name (module + function)");
 
@@ -219,8 +219,8 @@ void showSymbols()
         printf("%10.2f %10u %64s\n", percentage, symbols[i].count, name);
     }
 
-    showByModule(symbols, unique);
+    ShowByModule(symbols, unique);
 
-    freeMem(symbols);
+    FreeMemory(symbols);
 }
 

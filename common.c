@@ -2,7 +2,7 @@
 
 #include <proto/exec.h>
 
-APTR allocMem(const size_t size)
+APTR AllocateMemory(const size_t size)
 {
     if (!size) {
         IExec->DebugPrintF("%s: 0 size alloc\n", __func__);
@@ -21,7 +21,7 @@ APTR allocMem(const size_t size)
     return address;
 }
 
-void freeMem(APTR address)
+void FreeMemory(APTR address)
 {
     if (!address) {
         IExec->DebugPrintF("%s: nullptr\n", __func__);
@@ -31,7 +31,7 @@ void freeMem(APTR address)
 }
 
 
-size_t stringLen(const char* str)
+size_t StringLen(const char* str)
 {
     if (!str) {
         IExec->DebugPrintF("%s - nullptr\n", __func__);
@@ -47,10 +47,10 @@ size_t stringLen(const char* str)
     return len;
 }
 
-void copyString(char* const to, const char* const from, const size_t len)
+void CopyString(char* const to, const char* const from, const size_t len)
 {
     if (to && from && len > 0) {
-        const size_t need = stringLen(to) + len;
+        const size_t need = StringLen(to) + len;
 
         if (need >= NAME_LEN) {
             IExec->DebugPrintF("String buffer too short? Needs %lu+ bytes\n", need);

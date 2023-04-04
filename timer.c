@@ -11,7 +11,7 @@ static ULONG frequency;
 
 static int users;
 
-static void getInterface(struct Device* device)
+static void MyGetInterface(struct Device* device)
 {
     if (!ITimer) {
         ITimer = (struct TimerIFace *) IExec->GetInterface((struct Library *)device, "main", 1, NULL);
@@ -25,7 +25,7 @@ static void getInterface(struct Device* device)
     users++;
 }
 
-static void getFrequency()
+static void GetFrequency()
 {
     if (!frequency) {
         struct EClockVal val;
@@ -34,7 +34,7 @@ static void getFrequency()
     }
 }
 
-static void dropInterface() {
+static void MyDropInterface() {
     if (--users <= 0 && ITimer) {
         IExec->DebugPrintF("ITimer user count %d, dropping it\n", users);
         IExec->DropInterface((struct Interface *) ITimer);
@@ -42,7 +42,7 @@ static void dropInterface() {
     }
 }
 
-void timerStart(struct TimeRequest* request, const ULONG micros)
+void TimerStart(struct TimeRequest* request, const ULONG micros)
 {
     if (!request) {
         IExec->DebugPrintF("TimeRequest nullptr\n");
@@ -61,14 +61,14 @@ void timerStart(struct TimeRequest* request, const ULONG micros)
     IExec->BeginIO((struct IORequest *)request);
 }
 
-void timerQuit(TimerContext* ctx)
+void TimerQuit(TimerContext* ctx)
 {
     if (!ctx) {
         IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
         return;
     }
 
-    dropInterface();
+    MyDropInterface();
 
     if (ctx->request) {
         IExec->CloseDevice((struct IORequest *)ctx->request);
@@ -83,7 +83,7 @@ void timerQuit(TimerContext* ctx)
     }
 }
 
-BOOL timerInit(TimerContext* ctx, struct Interrupt* interrupt)
+BOOL TimerInit(TimerContext* ctx, struct Interrupt* interrupt)
 {
     if (!ctx) {
         IExec->DebugPrintF("%s: timer context nullptr\n", __func__);
@@ -128,27 +128,27 @@ BOOL timerInit(TimerContext* ctx, struct Interrupt* interrupt)
         goto clean;
     }
 
-    getInterface(ctx->request->Request.io_Device);
-    getFrequency();
+    MyGetInterface(ctx->request->Request.io_Device);
+    GetFrequency();
 
     return TRUE;
 
 clean:
-    timerQuit(ctx);
+    TimerQuit(ctx);
 
     return FALSE;
 }
 
-void timerWait(const ULONG micros)
+void TimerWait(const ULONG micros)
 {
     TimerContext pauseTimer;
 
-    if (!timerInit(&pauseTimer, NULL)) {
+    if (!TimerInit(&pauseTimer, NULL)) {
         puts("Failed to create timer");
         return;
     }
 
-    timerStart(pauseTimer.request, micros);
+    TimerStart(pauseTimer.request, micros);
 
     const uint32 timerSig = 1L << pauseTimer.port->mp_SigBit;
 
@@ -163,10 +163,10 @@ void timerWait(const ULONG micros)
         //puts("Stop pressing CTRL-C :)");
     }
 
-    timerQuit(&pauseTimer);
+    TimerQuit(&pauseTimer);
 }
 
-double ticksToMicros(const uint64 ticks)
+double TicksToMicros(const uint64 ticks)
 {
     return 1000000.0 * ticks / (double)frequency;
 }

@@ -71,6 +71,8 @@ static void ParseArgs(void)
 static BOOL InitContext()
 {
     ctx.mainSig = -1;
+    ctx.samples = 999;
+    ctx.interval = 1;
 
     ParseArgs();
 

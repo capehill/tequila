@@ -4,8 +4,7 @@ CC = ppc-amigaos-gcc
 CFLAGS = -Wall -Wextra -O3 -gstabs
 AMIGADATE = $(shell date LFORMAT "%-d.%-m.%Y")
 OBJS = profiler.o timer.o common.o symbols.o gui.o main.o
-
-# TODO: dependencies
+DEPS = $(OBJS:.o=.d)
 
 all: $(NAME)
 
@@ -18,6 +17,15 @@ $(NAME): $(OBJS)
 strip:
 	ppc-amigaos-strip $(NAME)
 
+# Dependencies
+%.d : %.c
+	$(CC) -MM -MP -MT $(@:.d=.o) -o $@ $< $(CFLAGS)
+
 clean:
 	rm $(NAME)
 	rm *.o
+
+ifneq ($(MAKECMDGOALS),clean)
+-include $(DEPS)
+endif
+

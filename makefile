@@ -1,9 +1,11 @@
 NAME = Tequila
 
-CC = gcc
+CC = ppc-amigaos-gcc
 CFLAGS = -Wall -Wextra -O3 -gstabs
 AMIGADATE = $(shell date LFORMAT "%-d.%-m.%Y")
-OBJS = profiler.o timer.o common.o symbols.o
+OBJS = profiler.o timer.o common.o symbols.o gui.o main.o
+
+# TODO: dependencies
 
 all: $(NAME)
 
@@ -11,11 +13,11 @@ all: $(NAME)
 	$(CC) -c $< $(CFLAGS) -D__AMIGA_DATE__="$(AMIGADATE)"
 
 $(NAME): $(OBJS)
-	$(CC) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) -lauto
 
 strip:
-	strip $(NAME)
+	ppc-amigaos-strip $(NAME)
 
 clean:
-	delete $(NAME)
-	delete #?.o
+	rm $(NAME)
+	rm *.o

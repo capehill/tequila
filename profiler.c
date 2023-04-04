@@ -1,113 +1,71 @@
 #include "common.h"
 #include "timer.h"
 #include "symbols.h"
+#include "profiler.h"
 
-#include <proto/exec.h>
 #include <proto/dos.h>
+#include <proto/exec.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static const char* const version __attribute__((used)) = "\0$VER: Tequila 0.1 (" __AMIGA_DATE__ ")";
-static const char* stackCookie __attribute__((used)) = "$STACK:64000";
-
-typedef struct Sample {
-    struct Task* task;
-} Sample;
-
-typedef struct SampleInfo {
-    char nameBuffer[NAME_LEN];
-    struct Task* task;
-    unsigned count;
-    float stackUsage;
-    BYTE priority;
-} SampleInfo;
-
-typedef struct TaskInfo {
-    float stackUsage;
-    BYTE priority;
-} TaskInfo;
-
-static char* nameBuffer;
-static char* cliNameBuffer;
-
-static TaskInfo taskInfo;
-
-static Sample* samples[2];
-static Sample* front;
-static Sample* back;
-
-static BOOL running = FALSE;
-
-static BYTE mainSig = -1;
-static struct Task* mainTask;
-
-static TimerContext sampler;
-
-typedef struct Params {
-    LONG* samples;
-    LONG* interval;
-    LONG debug;
-    LONG profile;
-} Params;
-
-static Params params = { NULL, NULL, 0, 0 };
-static ULONG period;
-static ULONG freq;
-static ULONG interval;
-
-static BOOL debugMode = FALSE;
-static BOOL profile = FALSE;
-
 static uint64 longest;
 
-static void interruptCode()
+void interruptCode(void)
 {
     struct MyClock start, finish;
 
-    if (debugMode) {
+    if (ctx.debugMode) {
         ITimer->ReadEClock(&start.un.clockVal);
     }
-//IExec->Disable();
+
+    //IExec->Disable();
+
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
 
-    back[counter].task = task;
+    ctx.back[counter].task = task;
 
-    if (profile) {
+    if (ctx.profile) {
         static unsigned addressCounter = 0;
 
         // TODO: Disable() needed?
         uint32 *sp = task->tc_SPReg;
-        uint32 address = *(sp + 1);
+        uint32 address = sp ? *(sp + 1) : 0;
 
-        addresses[addressCounter] = (ULONG *)address;
+        if (sp > (uint32*)task->tc_SPUpper || sp < (uint32*)task->tc_SPLower) {
+            IExec->DebugPrintF("SP %p\n", sp);
+        }
 
-        if (++addressCounter >= maxAddresses) {
+        ctx.addresses[addressCounter] = (ULONG *)address;
+
+        if (++addressCounter >= ctx.maxAddresses) {
             addressCounter = 0;
         }
     }
-//IExec->Enable();
-    if (++counter >= (freq * interval)) {
+
+    //IExec->Enable();
+
+    if (++counter >= (ctx.samples * ctx.interval)) {
         static int flip = 0;
 
         counter = 0;
-        front = samples[flip];
+        ctx.front = ctx.sampleBuffers[flip];
         flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
-        back = samples[flip];
+        ctx.back = ctx.sampleBuffers[flip];
         //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
-        IExec->Signal(mainTask, 1L << mainSig);
+        IExec->Signal(ctx.mainTask, 1L << ctx.mainSig);
     }
 
-    struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(sampler.port);
+    struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(ctx.sampler.port);
 
-    if (request && running) {
-        timerStart(request, period);
+    if (request && ctx.running) {
+        timerStart(request, ctx.period);
     }
 
-    if (debugMode) {
+    if (ctx.debugMode) {
         ITimer->ReadEClock(&finish.un.clockVal);
 
         const uint64 duration = finish.un.ticks - start.un.ticks;
@@ -119,19 +77,19 @@ static void interruptCode()
 
 static void getCliName(struct Task* task)
 {
-    cliNameBuffer[0] = '\0';
+    ctx.cliNameBuffer[0] = '\0';
 
     if (IS_PROCESS(task)) {
         struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
-                copyString(cliNameBuffer, " [", 2);
+                copyString(ctx.cliNameBuffer, " [", 2);
 
                 // BSTR
                 size_t len = *(UBYTE *)commandName;
-                copyString(cliNameBuffer + stringLen(cliNameBuffer), commandName + 1, len);
-                copyString(cliNameBuffer + stringLen(cliNameBuffer), "]", 1);
+                copyString(ctx.cliNameBuffer + stringLen(ctx.cliNameBuffer), commandName + 1, len);
+                copyString(ctx.cliNameBuffer + stringLen(ctx.cliNameBuffer), "]", 1);
             }
         }
     }
@@ -145,18 +103,18 @@ static BOOL traverse(struct List* list, struct Task* target)
         if (task == target) {
             getCliName(task);
 
-            copyString(nameBuffer, node->ln_Name, stringLen(node->ln_Name));
+            copyString(ctx.nameBuffer, node->ln_Name, stringLen(node->ln_Name));
 
-            if (stringLen(cliNameBuffer) > 0) {
-                copyString(nameBuffer + stringLen(nameBuffer), cliNameBuffer, stringLen(cliNameBuffer));
+            if (stringLen(ctx.cliNameBuffer) > 0) {
+                copyString(ctx.nameBuffer + stringLen(ctx.nameBuffer), ctx.cliNameBuffer, stringLen(ctx.cliNameBuffer));
             }
 
-            taskInfo.priority = node->ln_Pri;
+            ctx.taskInfo.priority = node->ln_Pri;
 
             const float totalStack = task->tc_SPUpper - task->tc_SPLower;
             const float usedStack = task->tc_SPUpper - task->tc_SPReg;
 
-            taskInfo.stackUsage = 100.0f * usedStack / totalStack;
+            ctx.taskInfo.stackUsage = 100.0f * usedStack / totalStack;
             return TRUE;
         }
     }
@@ -185,14 +143,14 @@ static SampleInfo initializeTaskData(struct Task* task)
 {
     SampleInfo info;
 
-    nameBuffer[0] = '\0';
-    taskInfo.priority = 0;
-    taskInfo.stackUsage = 0.0f;
+    ctx.nameBuffer[0] = '\0';
+    ctx.taskInfo.priority = 0;
+    ctx.taskInfo.stackUsage = 0.0f;
 
     const BOOL found = traverseLists(task);
 
     if (!found) {
-        if (task == mainTask) {
+        if (task == ctx.mainTask) {
             snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this task)");
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
@@ -200,13 +158,13 @@ static SampleInfo initializeTaskData(struct Task* task)
             info.priority = 0;
         }
     } else {
-        snprintf(info.nameBuffer, NAME_LEN, nameBuffer);
-        info.priority = taskInfo.priority;
+        snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
+        info.priority = ctx.taskInfo.priority;
     }
 
     info.count = 1;
     info.task = task;
-    info.stackUsage = taskInfo.stackUsage;
+    info.stackUsage = ctx.taskInfo.stackUsage;
 
     return info;
 }
@@ -222,18 +180,18 @@ static int comparison(const void* first, const void* second)
     return 0;
 }
 
-static size_t prepareResults(SampleInfo* results)
+size_t prepareResults(void)
 {
     size_t unique = 0;
 
-    for (size_t sample = 0; sample < interval * freq; sample++) {
-        struct Task* task = front[sample].task;
+    for (size_t sample = 0; sample < ctx.interval * ctx.samples; sample++) {
+        struct Task* task = ctx.front[sample].task;
 
         BOOL found = FALSE;
 
         for (size_t i = 0; i < unique; i++) {
-            if (results[i].task == task) {
-                results[i].count++;
+            if (ctx.sampleInfo[i].task == task) {
+                ctx.sampleInfo[i].count++;
                 //IExec->DebugPrintF("count %u for task %p\n", results[i].count, task);
                 found = TRUE;
                 break;
@@ -241,12 +199,12 @@ static size_t prepareResults(SampleInfo* results)
         }
 
         if (!found) {
-            results[unique] = initializeTaskData(task);
+            ctx.sampleInfo[unique] = initializeTaskData(task);
             unique++;
         }
     }
 
-    qsort(results, unique, sizeof(SampleInfo), comparison);
+    qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), comparison);
 
     return unique;
 }
@@ -264,13 +222,13 @@ static char* getCpuState(const float usage)
     return "IDLING";
 }
 
-static float getLoad(SampleInfo* results, const size_t count)
+static float getLoad(const size_t count)
 {
     float idleCpu = 0.0f;
 
     for (size_t i = 0; i < count; i++) {
-        if (strcmp(results[i].nameBuffer, "idle.task") == 0) {
-            idleCpu = 100.0f * results[i].count / (freq * interval);
+        if (strcmp(ctx.sampleInfo[i].nameBuffer, "idle.task") == 0) {
+            idleCpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
             break;
         }
     }
@@ -278,32 +236,31 @@ static float getLoad(SampleInfo* results, const size_t count)
     return 100.0f - idleCpu;
 }
 
-static void showResults(SampleInfo* results)
+static void showResults(void)
 {
     MyClock start, finish;
 
-    if (debugMode) {
+    if (ctx.debugMode) {
         ITimer->ReadEClock(&start.un.clockVal);
     }
 
-    const size_t unique = prepareResults(results);
-
-    const float usage = getLoad(results, unique);
+    const size_t unique = prepareResults();
+    const float usage = getLoad(unique);
 
     static unsigned round = 0;
 	
     printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]\n",
-        0x1B, round++, freq, interval, getCpuState(usage));
+        0x1B, round++, ctx.samples, ctx.interval, getCpuState(usage));
 
     printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 
     for (size_t i = 0; i < unique; i++) {
-        const float cpu = 100.0f * results[i].count / (freq * interval);
+        const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
 
-        printf("%-40s %6.2f %10d %10.2f\n", results[i].nameBuffer, cpu, results[i].priority, results[i].stackUsage);
+        printf("%-40s %6.2f %10d %10.2f\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage);
     }
 
-    if (debugMode) {
+    if (ctx.debugMode) {
         ITimer->ReadEClock(&finish.un.clockVal);
 
         printf("\nDEBUG: data processing time %g us, longest interrupt %g us\n",
@@ -311,170 +268,22 @@ static void showResults(SampleInfo* results)
     }
 }
 
-static void loop()
+void shellLoop(void)
 {
-    const uint32 signalMask = 1L << mainSig;
+    const uint32 signalMask = 1L << ctx.mainSig;
 
-    SampleInfo* results = allocMem(sizeof(SampleInfo) * freq * interval);
-
-    if (!results) {
-        puts("Failed to allocate memory");
-        return;
-    }
-
-    while (running) {
+    while (ctx.running) {
         const uint32 wait = IExec->Wait(signalMask | SIGBREAKF_CTRL_C);
 
         if (wait & signalMask) {
-            showResults(results);
+            showResults();
         }
 
         if (wait & SIGBREAKF_CTRL_C) {
-            running = FALSE;
+            ctx.running = FALSE;
 
             puts("...Adios!");
         }
     }
-
-    freeMem(results);
-}
-
-static void parseArgs()
-{
-    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S";
-
-    struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
-
-    if (result) {
-        if (params.samples) {
-            freq = *params.samples;
-        }
-
-        if (params.interval) {
-            interval = *params.interval;
-        }
-
-        debugMode = params.debug;
-        profile = params.profile;
-
-        IDOS->FreeArgs(result);
-    } else {
-        printf("Supported arguments: %s\n", pattern);
-    }
-
-    if (freq < 99) {
-        puts("Min freq 99 Hz");
-        freq = 99;
-    } else if (freq > 10000) {
-        puts("Max freq 10000 Hz");
-        freq = 10000;
-    }
-
-    period = 1000000 / freq;
-
-    if (interval < 1) {
-        puts("Min interval 1");
-        interval = 1;
-    } else if (interval > 5) {
-        puts("Max interval 5");
-        interval = 5;
-    }
-}
-
-int main()
-{
-    parseArgs();
-
-    struct Interrupt* interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
-        ASOINTR_Code, interruptCode,
-        TAG_DONE);
-
-    if (!interrupt) {
-        puts("Couldn't allocate interrupt");
-        goto quit;
-    }
-
-    samples[0] = allocMem(interval * freq * sizeof(Sample));
-    samples[1] = allocMem(interval * freq * sizeof(Sample));
-
-    if (!samples[0] || !samples[1]) {
-        puts("Failed to allocate sample buffers");
-        goto quit;
-    }
-
-    if (profile) {
-        maxAddresses = 30 * freq;
-
-        addresses = allocMem(maxAddresses * sizeof(ULONG *));
-
-        if (!addresses) {
-            puts("Failed to allocate address buffer");
-            goto quit;
-        }
-    }
-
-    back = samples[0];
-    front = NULL;
-
-    nameBuffer = allocMem(4 * NAME_LEN);
-    cliNameBuffer = allocMem(4 * NAME_LEN);
-
-    if (!nameBuffer || !cliNameBuffer) {
-        goto quit;
-    }
-
-    mainTask = IExec->FindTask(NULL);
-    mainSig = IExec->AllocSignal(-1);
-
-    if (mainSig == -1) {
-        puts("Couldn't allocate signal");
-        goto quit;
-    }
-
-    timerInit(&sampler, interrupt);
-
-    interrupt->is_Node.ln_Name = (char *)"Tequila";
-
-    running = TRUE;
-
-    timerStart(sampler.request, period);
-
-    loop();
-
-    if (profile) {
-        showSymbols();
-    }
-
-    timerWait(1000000);
-
-quit:
-
-    if (mainSig != -1) {
-        IExec->FreeSignal(mainSig);
-        mainSig = -1;
-    }
-
-    timerQuit(&sampler);
-
-    freeMem(nameBuffer);
-    freeMem(cliNameBuffer);
-
-    nameBuffer = cliNameBuffer = NULL;
-
-    freeMem(samples[0]);
-    freeMem(samples[1]);
-    samples[0] = samples[1] = NULL;
-
-    if (profile) {
-        freeMem(addresses);
-        addresses = NULL;
-    }
-
-    if (interrupt) {
-        IExec->FreeSysObject(ASOT_INTERRUPT, interrupt);
-        interrupt = NULL;
-    }
-
-    return 0;
 }
 

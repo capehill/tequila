@@ -18,9 +18,6 @@ typedef struct SymbolInfo {
     char functionName[NAME_LEN];
 } SymbolInfo;
 
-ULONG** addresses = NULL;
-ULONG maxAddresses = 0;
-
 static void symbol(const ULONG* address, SymbolInfo* symbolInfo)
 {
     struct DebugSymbol* ds = IDebug->ObtainDebugSymbol(address, NULL);
@@ -31,7 +28,9 @@ static void symbol(const ULONG* address, SymbolInfo* symbolInfo)
         IDebug->ReleaseDebugSymbol(ds);
     } else {
         snprintf(symbolInfo->moduleName, NAME_LEN, "Not available");
-        symbolInfo->functionName[0] = '\0';
+        //symbolInfo->functionName[0] = '\0';
+        snprintf(symbolInfo->functionName, NAME_LEN, "%p", address);
+        //IExec->DebugPrintF("%p\n", address);
     }
 }
 
@@ -89,13 +88,13 @@ static size_t prepareSymbols(SymbolInfo* symbols)
         return 0;
     }
 
-    printf("\nProcessing symbol data (max addresses %lu)...\n", maxAddresses);
+    printf("\nProcessing symbol data (max addresses %lu)...\n", ctx.maxAddresses);
 
-    const size_t part = maxAddresses / 10;
+    const size_t part = ctx.maxAddresses / 10;
     size_t nextMark = part;
 
-    for (size_t i = 0; i < maxAddresses; i++) {
-        ULONG* const currAddress = addresses[i];
+    for (size_t i = 0; i < ctx.maxAddresses; i++) {
+        ULONG* const currAddress = ctx.addresses[i];
 
         if (!currAddress) {
             continue;
@@ -104,7 +103,7 @@ static size_t prepareSymbols(SymbolInfo* symbols)
         validSymbols++;
 
         if (i >= nextMark) {
-            printf("%u/%lu\n", i, maxAddresses);
+            printf("%u/%lu\n", i, ctx.maxAddresses);
             nextMark += part;
         }
 

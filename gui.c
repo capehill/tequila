@@ -82,12 +82,6 @@ static BOOL OpenClasses()
         return FALSE;
     }
 
-    ListBrowserBase = (struct Library *)IIntuition->OpenClass("gadgets/listbrowser.gadget", version, &ListBrowserClass);
-    if (!ListBrowserBase) {
-        return FALSE;
-        puts("Failed to open listbrowser.gadget");
-    }
-
     return TRUE;
 }
 
@@ -96,7 +90,6 @@ static void CloseClasses()
     IIntuition->CloseClass(WindowBase);
     IIntuition->CloseClass(RequesterBase);
     IIntuition->CloseClass(LayoutBase);
-    IIntuition->CloseClass((struct ClassLibrary *)ListBrowserBase);
 }
 
 static char* getApplicationName()

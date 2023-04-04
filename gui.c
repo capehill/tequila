@@ -60,6 +60,13 @@ static struct ColumnInfo* columnInfo;
 static struct List labelList;
 static struct Node* nodes[MAX_NODES];
 
+static void RemoveLabelNodes(void)
+{
+    while (IExec->RemHead(&labelList) != NULL) {
+        //
+    }
+}
+
 static BOOL OpenClasses()
 {
     const int version = 53;
@@ -254,9 +261,7 @@ static void UpdateDisplay(void)
 
     IIntuition->SetAttrs(objects[OID_ListBrowser], LISTBROWSER_Labels, NULL, TAG_DONE);
 
-    while (IExec->RemHead(&labelList) != NULL) {
-        //
-    }
+    RemoveLabelNodes();
 
     for (size_t i = 0; i < max; i++) {
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
@@ -367,9 +372,7 @@ void GuiLoop(void)
 
         IExec->FreeSysObject(ASOT_PORT, port);
 
-        while (IExec->RemHead(&labelList) != NULL) {
-            //puts("RemHead");
-        }
+        RemoveLabelNodes();
 
         for (int i = 0; i < MAX_NODES; i++) {
             IListBrowser->FreeListBrowserNode(nodes[i]);

@@ -11,8 +11,11 @@
 
 #include <classes/requester.h>
 #include <classes/window.h>
+
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
+#include <gadgets/button.h>
+
 #include <libraries/gadtools.h>
 
 #include <stdio.h>
@@ -21,6 +24,7 @@ enum EObject {
     OID_Window,
     OID_AboutWindow,
     OID_ListBrowser,
+    OID_Uptime,
     OID_Count // KEEP LAST
 };
 
@@ -49,10 +53,12 @@ static struct MsgPort* port;
 static struct ClassLibrary* WindowBase;
 static struct ClassLibrary* RequesterBase;
 static struct ClassLibrary* LayoutBase;
+static struct ClassLibrary* ButtonBase;
 
 static Class* WindowClass;
 static Class* RequesterClass;
 static Class* LayoutClass;
+static Class* ButtonClass;
 
 #define MAX_NODES 100
 
@@ -89,6 +95,12 @@ static BOOL OpenClasses()
         return FALSE;
     }
 
+    ButtonBase = IIntuition->OpenClass("gadgets/button.gadget", version, &ButtonClass);
+    if (!ButtonBase) {
+        puts("Failed to open button.gadget");
+        return FALSE;
+    }
+
     return TRUE;
 }
 
@@ -97,6 +109,7 @@ static void CloseClasses()
     IIntuition->CloseClass(WindowBase);
     IIntuition->CloseClass(RequesterBase);
     IIntuition->CloseClass(LayoutBase);
+    IIntuition->CloseClass(ButtonBase);
 }
 
 static char* GetApplicationName()
@@ -196,13 +209,18 @@ static Object* CreateGui()
         WINDOW_Layout, IIntuition->NewObject(LayoutClass, NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
 
-#if 0
             LAYOUT_AddChild, IIntuition->NewObject(LayoutClass, NULL,
                 LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
                 LAYOUT_Label, "Information",
                 LAYOUT_BevelStyle, BVS_GROUP,
+
+                LAYOUT_AddChild, objects[OID_Uptime] = IIntuition->NewObject(ButtonClass, NULL,
+                    GA_ReadOnly, TRUE,
+                    GA_Text, GetUptimeString(),
+                    BUTTON_BevelStyle, BVS_NONE,
+                    BUTTON_Transparent, TRUE,
+                    TAG_DONE),
                 TAG_DONE), // vertical layout.gadget
-#endif
 
             LAYOUT_AddChild, objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
                 GA_ReadOnly, TRUE,
@@ -259,7 +277,13 @@ static void UpdateDisplay(void)
 
     //const float usage = getLoad(unique);
 
-    IIntuition->SetAttrs(objects[OID_ListBrowser], LISTBROWSER_Labels, NULL, TAG_DONE);
+    IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Uptime], window, NULL,
+                                      GA_Text, GetUptimeString(),
+                                      TAG_DONE);
+
+    IIntuition->SetAttrs(objects[OID_ListBrowser],
+                         LISTBROWSER_Labels, NULL,
+                         TAG_DONE);
 
     RemoveLabelNodes();
 

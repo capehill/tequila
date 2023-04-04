@@ -171,3 +171,38 @@ double TicksToMicros(const uint64 ticks)
     return 1000000.0 * ticks / (double)frequency;
 }
 
+double GetUptimeInSeconds(void)
+{
+    if (ITimer) {
+        struct TimeVal tv;
+        ITimer->GetUpTime(&tv);
+        return tv.Seconds + tv.Microseconds / 1000000.0;
+    }
+
+    return 0.0;
+}
+
+const char* GetUptimeString(void)
+{
+    const uint64 seconds = (uint64)GetUptimeInSeconds();
+    const uint32 secondsInMinute = 60;
+    const uint32 secondsInHour = 60 * secondsInMinute;
+    const uint32 secondsInDay = 24 * secondsInHour;
+
+    const uint32 d = seconds / secondsInDay;
+    const uint32 m = (seconds - d * secondsInDay) / secondsInMinute;
+    const uint32 s = (seconds - m * secondsInMinute);
+
+    static char buf[64];
+
+    if (d > 0) {
+        snprintf(buf, sizeof(buf), "Uptime: %lu days, %lu minutes, %lu seconds", d, m, s);
+    } else if (m > 0) {
+        snprintf(buf, sizeof(buf), "Uptime: %lu minutes, %lu seconds", m, s);
+    } else {
+        snprintf(buf, sizeof(buf), "Uptime: %lu seconds", s);
+    }
+
+    return buf;
+}
+

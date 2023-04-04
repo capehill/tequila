@@ -21,5 +21,7 @@ void TimerQuit(TimerContext* ctx);
 BOOL TimerInit(TimerContext* ctx, struct Interrupt* interrupt);
 void TimerWait(ULONG micros);
 double TicksToMicros(uint64 ticks);
+double GetUptimeInSeconds(void);
+const char* GetUptimeString(void);
 
 #endif // TIMER_H

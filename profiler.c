@@ -249,8 +249,8 @@ static void ShowResults(void)
 
     static unsigned round = 0;
 	
-    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]\n",
-        0x1B, round++, ctx.samples, ctx.interval, GetCpuState(usage));
+    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]. %s\n",
+        0x1B, round++, ctx.samples, ctx.interval, GetCpuState(usage), GetUptimeString());
 
     printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 

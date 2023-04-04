@@ -10,7 +10,7 @@
 #include <proto/dos.h>
 #include <proto/exec.h>
 
-static const char* const version __attribute__((used)) = "$VER: " VERSION_STRING " " DATE_STRING;
+static const char* const version __attribute__((used)) = "$VER: " VERSION_STRING DATE_STRING;
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
 
 typedef struct Params {

@@ -184,23 +184,30 @@ double GetUptimeInSeconds(void)
 
 const char* GetUptimeString(void)
 {
-    const uint64 seconds = (uint64)GetUptimeInSeconds();
+    uint32 seconds = (uint32)GetUptimeInSeconds();
     const uint32 secondsInMinute = 60;
     const uint32 secondsInHour = 60 * secondsInMinute;
     const uint32 secondsInDay = 24 * secondsInHour;
 
-    const uint32 d = seconds / secondsInDay;
-    const uint32 m = (seconds - d * secondsInDay) / secondsInMinute;
-    const uint32 s = (seconds - m * secondsInMinute);
+    const uint32 days = seconds / secondsInDay;
+    seconds -= days * secondsInDay;
+
+    const uint32 hours = seconds / secondsInHour;
+    seconds -= hours * secondsInHour;
+
+    const uint32 minutes = seconds / secondsInMinute;
+    seconds -= minutes * secondsInMinute;
 
     static char buf[64];
 
-    if (d > 0) {
-        snprintf(buf, sizeof(buf), "Uptime: %lu days, %lu minutes, %lu seconds", d, m, s);
-    } else if (m > 0) {
-        snprintf(buf, sizeof(buf), "Uptime: %lu minutes, %lu seconds", m, s);
+    if (days > 0) {
+        snprintf(buf, sizeof(buf), "Uptime: %lu days, %lu hours, %lu minutes, %lu seconds", days, hours, minutes, seconds);
+    } else if (hours > 0) {
+        snprintf(buf, sizeof(buf), "Uptime: %lu hours, %lu minutes, %lu seconds", hours, minutes, seconds);
+    }else if (minutes > 0) {
+        snprintf(buf, sizeof(buf), "Uptime: %lu minutes, %lu seconds", minutes, seconds);
     } else {
-        snprintf(buf, sizeof(buf), "Uptime: %lu seconds", s);
+        snprintf(buf, sizeof(buf), "Uptime: %lu seconds", seconds);
     }
 
     return buf;

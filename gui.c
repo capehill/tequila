@@ -25,6 +25,8 @@ enum EObject {
     OID_AboutWindow,
     OID_ListBrowser,
     OID_Uptime,
+    OID_Tasks,
+    OID_Idle,
     OID_Count // KEEP LAST
 };
 
@@ -210,21 +212,38 @@ static Object* CreateGui()
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
 
             LAYOUT_AddChild, IIntuition->NewObject(LayoutClass, NULL,
-                LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_Label, "Information",
                 LAYOUT_BevelStyle, BVS_GROUP,
 
-                LAYOUT_AddChild, objects[OID_Uptime] = IIntuition->NewObject(ButtonClass, NULL,
+                LAYOUT_AddChild, objects[OID_Idle] = IIntuition->NewObject(ButtonClass, NULL,
                     GA_ReadOnly, TRUE,
-                    GA_Text, GetUptimeString(),
+                    GA_Text, "Idle --.--%",
                     BUTTON_BevelStyle, BVS_NONE,
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
-                TAG_DONE), // vertical layout.gadget
+
+                LAYOUT_AddChild, objects[OID_Tasks] = IIntuition->NewObject(ButtonClass, NULL,
+                    GA_ReadOnly, TRUE,
+                    GA_Text, "Tasks ---",
+                    BUTTON_BevelStyle, BVS_NONE,
+                    BUTTON_Transparent, TRUE,
+                    TAG_DONE),
+
+                LAYOUT_AddChild, objects[OID_Uptime] = IIntuition->NewObject(ButtonClass, NULL,
+                    GA_ReadOnly, TRUE,
+                    GA_Text, "Uptime --:--:--",
+                    BUTTON_BevelStyle, BVS_NONE,
+                    BUTTON_Transparent, TRUE,
+                    TAG_DONE),
+
+                TAG_DONE), // horizontal layout.gadget
+            CHILD_WeightedHeight, 10,
 
             LAYOUT_AddChild, objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
                 GA_ReadOnly, TRUE,
                 GA_HintInfo, "TODO",
+                GA_ID, GID_ListBrowser,
                 LISTBROWSER_ColumnInfo, columnInfo,
                 LISTBROWSER_ColumnTitles, TRUE,
                 LISTBROWSER_Labels, &labelList,
@@ -232,6 +251,7 @@ static Object* CreateGui()
                 TAG_DONE),
             CHILD_MinWidth, 400,
             CHILD_MinHeight, 200,
+            CHILD_WeightedHeight, 90,
 
             TAG_DONE), // vertical layout.gadget
         TAG_DONE); // window.class
@@ -277,8 +297,24 @@ static void UpdateDisplay(void)
 
     //const float usage = getLoad(unique);
 
+    static char taskString[16];
+    static char idleString[16];
+    static char uptimeString[64];
+
+    snprintf(taskString, sizeof(taskString), "Tasks %u", GetTotalTaskCount());
+    snprintf(idleString, sizeof(idleString), "Idle %3.2f%%", GetIdleCpu(unique));
+    snprintf(uptimeString, sizeof(uptimeString), "Uptime %s", GetUptimeString());
+
+    IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Idle], window, NULL,
+                                      GA_Text, idleString,
+                                      TAG_DONE);
+
+    IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Tasks], window, NULL,
+                                      GA_Text, taskString,
+                                      TAG_DONE);
+
     IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Uptime], window, NULL,
-                                      GA_Text, GetUptimeString(),
+                                      GA_Text, uptimeString,
                                       TAG_DONE);
 
     IIntuition->SetAttrs(objects[OID_ListBrowser],

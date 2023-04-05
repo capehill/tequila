@@ -6,5 +6,7 @@
 void InterruptCode(void);
 void ShellLoop(void);
 size_t PrepareResults(void);
+size_t GetTotalTaskCount(void);
+float GetIdleCpu(const size_t count);
 
 #endif

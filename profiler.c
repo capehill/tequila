@@ -122,6 +122,31 @@ static BOOL Traverse(struct List* list, struct Task* target)
     return FALSE;
 }
 
+static size_t GetTaskCount(struct List* list)
+{
+    size_t tasks = 0;
+    for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
+        tasks++;
+    }
+
+    return tasks;
+}
+
+size_t GetTotalTaskCount(void)
+{
+    struct ExecBase* eb = (struct ExecBase *)SysBase;
+    size_t tasks = 0;
+
+    IExec->Disable();
+
+    tasks += GetTaskCount(&eb->TaskReady);
+    tasks += GetTaskCount(&eb->TaskWait);
+
+    IExec->Enable();
+
+    return tasks;
+}
+
 static BOOL TraverseLists(struct Task* task)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
@@ -208,7 +233,7 @@ size_t PrepareResults(void)
 
     return unique;
 }
-
+/*
 static char* GetCpuState(const float usage)
 {
     if (usage >= 90.0f) {
@@ -221,8 +246,8 @@ static char* GetCpuState(const float usage)
 
     return "IDLING";
 }
-
-static float GetLoad(const size_t count)
+*/
+float GetIdleCpu(const size_t count)
 {
     float idleCpu = 0.0f;
 
@@ -233,8 +258,15 @@ static float GetLoad(const size_t count)
         }
     }
 
-    return 100.0f - idleCpu;
+    return idleCpu;
 }
+
+/*
+static float GetLoad(const size_t count)
+{
+    return 100.0f - GetIdleCpu(count);
+}
+*/
 
 static void ShowResults(void)
 {
@@ -245,12 +277,10 @@ static void ShowResults(void)
     }
 
     const size_t unique = PrepareResults();
-    const float usage = GetLoad(unique);
+    //const float usage = GetLoad(unique);
 
-    static unsigned round = 0;
-	
-    printf("%cc[[ Tequila ]] - Round # %u, frequency %lu Hz, interval %lu seconds, status [%s]. %s\n",
-        0x1B, round++, ctx.samples, ctx.interval, GetCpuState(usage), GetUptimeString());
+    printf("%cc[[ Tequila ]] - frequency %lu Hz, idle %3.2f%%, tasks %u. Uptime %s\n",
+        0x1B, ctx.samples, GetIdleCpu(unique), GetTotalTaskCount(), GetUptimeString());
 
     printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
 

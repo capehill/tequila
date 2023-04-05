@@ -198,16 +198,12 @@ const char* GetUptimeString(void)
     const uint32 minutes = seconds / secondsInMinute;
     seconds -= minutes * secondsInMinute;
 
-    static char buf[64];
+    static char buf[32];
 
     if (days > 0) {
-        snprintf(buf, sizeof(buf), "Uptime: %lu days, %lu hours, %lu minutes, %lu seconds", days, hours, minutes, seconds);
-    } else if (hours > 0) {
-        snprintf(buf, sizeof(buf), "Uptime: %lu hours, %lu minutes, %lu seconds", hours, minutes, seconds);
-    }else if (minutes > 0) {
-        snprintf(buf, sizeof(buf), "Uptime: %lu minutes, %lu seconds", minutes, seconds);
+        snprintf(buf, sizeof(buf), "%lu days, %2lu:%2lu:%2lu", days, hours, minutes, seconds);
     } else {
-        snprintf(buf, sizeof(buf), "Uptime: %lu seconds", seconds);
+        snprintf(buf, sizeof(buf), "%02lu:%02lu:%02lu", hours, minutes, seconds);
     }
 
     return buf;

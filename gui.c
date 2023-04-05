@@ -24,6 +24,7 @@ enum EObject {
     OID_Window,
     OID_AboutWindow,
     OID_ListBrowser,
+    OID_InfoLayout,
     OID_Uptime,
     OID_Tasks,
     OID_Idle,
@@ -211,7 +212,7 @@ static Object* CreateGui()
         WINDOW_Layout, IIntuition->NewObject(LayoutClass, NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
 
-            LAYOUT_AddChild, IIntuition->NewObject(LayoutClass, NULL,
+            LAYOUT_AddChild, objects[OID_InfoLayout] = IIntuition->NewObject(LayoutClass, NULL,
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_Label, "Information",
                 LAYOUT_BevelStyle, BVS_GROUP,
@@ -297,14 +298,27 @@ static void UpdateDisplay(void)
 
     //const float usage = getLoad(unique);
 
-    static char taskString[16];
+    static char tasksString[16];
     static char idleString[16];
     static char uptimeString[64];
 
-    snprintf(taskString, sizeof(taskString), "Tasks %u", GetTotalTaskCount());
+    snprintf(tasksString, sizeof(tasksString), "Tasks %u", GetTotalTaskCount());
     snprintf(idleString, sizeof(idleString), "Idle %3.2f%%", GetIdleCpu(unique));
     snprintf(uptimeString, sizeof(uptimeString), "Uptime %s", GetUptimeString());
 
+    IIntuition->SetAttrs(objects[OID_Idle],
+                         GA_Text, idleString,
+                         TAG_DONE);
+
+    IIntuition->SetAttrs(objects[OID_Tasks],
+                         GA_Text, tasksString,
+                         TAG_DONE);
+
+    IIntuition->SetAttrs(objects[OID_Uptime],
+                         GA_Text, uptimeString,
+                         TAG_DONE);
+
+/*
     IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Idle], window, NULL,
                                       GA_Text, idleString,
                                       TAG_DONE);
@@ -316,6 +330,8 @@ static void UpdateDisplay(void)
     IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_Uptime], window, NULL,
                                       GA_Text, uptimeString,
                                       TAG_DONE);
+*/
+    IIntuition->RefreshGList((struct Gadget *)objects[OID_InfoLayout], window, NULL, -1);
 
     IIntuition->SetAttrs(objects[OID_ListBrowser],
                          LISTBROWSER_Labels, NULL,
@@ -398,7 +414,7 @@ static void HandleEvents(void)
             }
         }
 
-        if (wait & timerSignal) {
+        if (window && (wait & timerSignal)) {
             UpdateDisplay();
         }
     }

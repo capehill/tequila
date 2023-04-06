@@ -196,6 +196,12 @@ static Object* CreateGui()
 
     IExec->NewList(&labelList);
 
+    static const char* const listBrowserHelp = "Task - task or process name\n"
+        "CPU % - how much CPU task is using\n"
+        "Priority - higher priority tasks get more CPU time\n"
+        "Stack % - how much stack task is using\n"
+        "PID - process ID. Plain tasks don't have PID";
+
     return IIntuition->NewObject(WindowClass, NULL,
         WA_ScreenTitle, VERSION_STRING DATE_STRING,
         WA_Title, VERSION_STRING,
@@ -246,7 +252,7 @@ static Object* CreateGui()
 
             LAYOUT_AddChild, objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
                 GA_ReadOnly, TRUE,
-                GA_HintInfo, "TODO",
+                GA_HintInfo, listBrowserHelp,
                 GA_ID, GID_ListBrowser,
                 LISTBROWSER_ColumnInfo, columnInfo,
                 LISTBROWSER_ColumnTitles, TRUE,

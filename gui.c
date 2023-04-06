@@ -164,10 +164,10 @@ static void ShowAboutWindow()
 
 static Object* CreateGui()
 {
-    columnInfo = IListBrowser->AllocLBColumnInfo(4,
+    columnInfo = IListBrowser->AllocLBColumnInfo(5,
                                                  LBCIA_Column, 0,
                                                  LBCIA_Title, "Task",
-                                                 LBCIA_Weight, 70,
+                                                 LBCIA_Weight, 60,
                                                  LBCIA_Column, 1,
                                                  LBCIA_Title, "CPU %",
                                                  LBCIA_Weight, 10,
@@ -177,6 +177,9 @@ static Object* CreateGui()
                                                  LBCIA_Column, 3,
                                                  LBCIA_Title, "Stack %",
                                                  LBCIA_Weight, 10,
+                                                 LBCIA_Column, 4,
+                                                 LBCIA_Title, "PID",
+                                                 LBCIA_Weight, 10,
                                                  TAG_DONE);
 
     if (!columnInfo) {
@@ -185,7 +188,7 @@ static Object* CreateGui()
     }
 
     for (int i = 0; i < MAX_NODES; i++) {
-        nodes[i] = IListBrowser->AllocListBrowserNode(4, TAG_DONE);
+        nodes[i] = IListBrowser->AllocListBrowserNode(5, TAG_DONE);
         if (!nodes[i]) {
             printf("Failed to allocate listbrowser node %d\n", i);
         }
@@ -344,6 +347,7 @@ static void UpdateDisplay(void)
         static char cpuBuffer[10];
         static char stackBuffer[10];
         const int32 priorityBuffer = ctx.sampleInfo[i].priority;
+        const int32 pidBuffer = ctx.sampleInfo[i].pid;
 
         snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.2f", cpu);
         snprintf(stackBuffer, sizeof(stackBuffer), "%3.2f", ctx.sampleInfo[i].stackUsage);
@@ -361,6 +365,9 @@ static void UpdateDisplay(void)
                                               LBNA_Column, 3,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, stackBuffer,
+                                              LBNA_Column, 4,
+                                                LBNCA_CopyInteger, TRUE,
+                                                LBNCA_Integer, &pidBuffer,
                                               TAG_DONE);
 
         IExec->AddTail(&labelList, nodes[i]);

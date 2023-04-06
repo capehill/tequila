@@ -10,6 +10,7 @@
 
 typedef struct TaskInfo {
     float stackUsage;
+    uint32 pid;
     BYTE priority;
 } TaskInfo;
 
@@ -22,6 +23,7 @@ typedef struct SampleInfo {
     struct Task* task;
     unsigned count;
     float stackUsage;
+    uint32 pid;
     BYTE priority;
 } SampleInfo;
 

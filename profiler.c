@@ -80,6 +80,8 @@ static void GetCliName(struct Task* task)
     ctx.cliNameBuffer[0] = '\0';
 
     if (IS_PROCESS(task)) {
+        struct Process* process = (struct Process *)task;
+        ctx.taskInfo.pid = process->pr_ProcessID;
         struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
@@ -93,6 +95,14 @@ static void GetCliName(struct Task* task)
             }
         }
     }
+}
+
+static float GetStackUsage(struct Task* task)
+{
+    const float totalStack = task->tc_SPUpper - task->tc_SPLower;
+    const float usedStack = task->tc_SPUpper - task->tc_SPReg;
+
+    return 100.0f * usedStack / totalStack;
 }
 
 static BOOL Traverse(struct List* list, struct Task* target)
@@ -110,11 +120,7 @@ static BOOL Traverse(struct List* list, struct Task* target)
             }
 
             ctx.taskInfo.priority = node->ln_Pri;
-
-            const float totalStack = task->tc_SPUpper - task->tc_SPLower;
-            const float usedStack = task->tc_SPUpper - task->tc_SPReg;
-
-            ctx.taskInfo.stackUsage = 100.0f * usedStack / totalStack;
+            ctx.taskInfo.stackUsage = GetStackUsage(task);
             return TRUE;
         }
     }
@@ -169,27 +175,31 @@ static SampleInfo InitializeTaskData(struct Task* task)
     SampleInfo info;
 
     ctx.nameBuffer[0] = '\0';
-    ctx.taskInfo.priority = 0;
     ctx.taskInfo.stackUsage = 0.0f;
+    ctx.taskInfo.pid = 0;
+    ctx.taskInfo.priority = 0;
 
     const BOOL found = TraverseLists(task);
 
-    if (!found) {
+    if (found) {
+        snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
+    } else {
         if (task == ctx.mainTask) {
             snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this task)");
-            info.priority = ((struct Node *)task)->ln_Pri;
+            ctx.taskInfo.stackUsage = GetStackUsage(task);
+            ctx.taskInfo.pid = ((struct Process *)task)->pr_ProcessID;
+            ctx.taskInfo.priority = ((struct Node *)task)->ln_Pri;
         } else {
+            /* Could be some removed task */
             snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
-            info.priority = 0;
         }
-    } else {
-        snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
-        info.priority = ctx.taskInfo.priority;
     }
 
-    info.count = 1;
     info.task = task;
+    info.count = 1;
     info.stackUsage = ctx.taskInfo.stackUsage;
+    info.pid = ctx.taskInfo.pid;
+    info.priority = ctx.taskInfo.priority;
 
     return info;
 }
@@ -282,12 +292,12 @@ static void ShowResults(void)
     printf("%cc[[ Tequila ]] - frequency %lu Hz, idle %3.2f%%, tasks %u. Uptime %s\n",
         0x1B, ctx.samples, GetIdleCpu(unique), GetTotalTaskCount(), GetUptimeString());
 
-    printf("%-40s %6s %10s %10s\n", "Task name:", "CPU %", "Priority", "Stack %");
+    printf("%-40s %6s %10s %10s %6s\n", "Task name:", "CPU %", "Priority", "Stack %", "PID");
 
     for (size_t i = 0; i < unique; i++) {
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
 
-        printf("%-40s %6.2f %10d %10.2f\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage);
+        printf("%-40s %6.2f %10d %10.2f %6lu\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage, ctx.sampleInfo[i].pid);
     }
 
     if (ctx.debugMode) {

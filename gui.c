@@ -17,6 +17,7 @@
 #include <gadgets/button.h>
 
 #include <libraries/gadtools.h>
+#include <libraries/keymap.h>
 
 #include <stdio.h>
 
@@ -212,6 +213,7 @@ static Object* CreateGui()
         WA_SizeGadget, TRUE,
         WA_Width, 640,
         WA_Height, 480,
+        //WA_IDCMP, IDCMP_RAWKEY,
         WINDOW_Position, WPOS_CENTERMOUSE,
         WINDOW_IconifyGadget, TRUE,
         WINDOW_Icon, MyGetDiskObject(),
@@ -384,6 +386,12 @@ static void UpdateDisplay(void)
                                       TAG_DONE);
 }
 
+static BOOL HandleRawKey(const int16 code)
+{
+    //printf("code %d\n", code);
+    return (code != RAWKEY_ESC);
+}
+
 static void HandleEvents(void)
 {
     uint32 signal = 0;
@@ -405,7 +413,6 @@ static void HandleEvents(void)
             uint32 result;
             int16 code = 0;
 
-            // TODO: handle keys, like ESC
             while ((result = IIntuition->IDoMethod(objects[OID_Window], WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
                 switch (result & WMHI_CLASSMASK) {
                     case WMHI_CLOSEWINDOW:
@@ -422,6 +429,9 @@ static void HandleEvents(void)
                         break;
                     case WMHI_MENUPICK:
                         running = HandleMenupick(result & WMHI_MENUMASK);
+                        break;
+                    case WMHI_RAWKEY:
+                        running = HandleRawKey(code);
                         break;
                 }
             }

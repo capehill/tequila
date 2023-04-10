@@ -268,10 +268,20 @@ float GetIdleCpu(const size_t count)
 {
     float idleCpu = 0.0f;
 
+    // Following tasks are considered idle.task which are running
+    // when there is nothing else to schedule.
+    const char* const knownIdleTaskNames[4] = {
+        "idle.task", // AmigaOS 4 system idle.task
+        "Uuno", // CPU Watcher
+        "CPUClock.CPUTask", // CPUClock docky
+        "CPUInfo.CPUTask", // CPUInfo docky
+    };
+
     for (size_t i = 0; i < count; i++) {
-        if (strcmp(ctx.sampleInfo[i].nameBuffer, "idle.task") == 0) {
-            idleCpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
-            break;
+        for (size_t n = 0; n < sizeof(knownIdleTaskNames) / sizeof(knownIdleTaskNames[0]); n++) {
+            if (strcmp(ctx.sampleInfo[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
+                idleCpu += 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+            }
         }
     }
 
@@ -328,8 +338,6 @@ void ShellLoop(void)
 
         if (wait & SIGBREAKF_CTRL_C) {
             ctx.running = FALSE;
-
-            puts("...Adios!");
         }
     }
 }

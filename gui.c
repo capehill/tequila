@@ -438,8 +438,17 @@ static void HandleEvents(void)
             }
         }
 
-        if (window && (wait & timerSignal)) {
+        if ((wait & timerSignal) && window) {
+            MyClock start, finish;
+            ITimer->ReadEClock(&start.un.clockVal);
             UpdateDisplay();
+            ITimer->ReadEClock(&finish.un.clockVal);
+
+            if (ctx.debugMode) {
+                const uint64 duration = finish.un.ticks - start.un.ticks;
+
+                printf("Display update %f ms\n", 0.001f * TicksToMicros(duration));
+            }
         }
     }
 }

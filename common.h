@@ -37,7 +37,8 @@ typedef struct Context {
     BOOL gui;
     BOOL running;
 
-    BYTE mainSig;
+    BYTE timerSignal;
+    BYTE lastSignal;
     struct Task* mainTask;
     struct Interrupt* interrupt;
     TaskInfo taskInfo;

@@ -397,7 +397,7 @@ static void HandleEvents(void)
     uint32 signal = 0;
     IIntuition->GetAttr(WINDOW_SigMask, objects[OID_Window], &signal);
 
-    const uint32 timerSignal = 1L << ctx.mainSig;
+    const uint32 timerSignal = 1L << ctx.timerSignal;
 
     BOOL running = TRUE;
 

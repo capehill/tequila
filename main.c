@@ -68,9 +68,10 @@ static void ParseArgs(void)
     }
 }
 
-static BOOL InitContext()
+static BOOL InitContext(const int /*argc*/, char* /*argv*/[])
 {
-    ctx.mainSig = -1;
+    ctx.timerSignal = -1;
+    ctx.lastSignal = -1;
     ctx.samples = 999;
     ctx.interval = 1;
 
@@ -81,7 +82,7 @@ static BOOL InitContext()
         TAG_DONE);
 
     if (!ctx.interrupt) {
-        puts("Couldn't allocate interrupt");
+        puts("Failed to allocate interrupt");
         return FALSE;
     }
 
@@ -121,10 +122,11 @@ static BOOL InitContext()
     }
 
     ctx.mainTask = IExec->FindTask(NULL);
-    ctx.mainSig = IExec->AllocSignal(-1);
+    ctx.timerSignal = IExec->AllocSignal(-1);
+    ctx.lastSignal = IExec->AllocSignal(-1);
 
-    if (ctx.mainSig == -1) {
-        puts("Couldn't allocate signal");
+    if (ctx.timerSignal == -1 || ctx.lastSignal == -1) {
+        puts("Failed to allocate signal");
         return FALSE;
     }
 
@@ -140,9 +142,14 @@ static BOOL InitContext()
 
 static void CleanupContext()
 {
-    if (ctx.mainSig != -1) {
-        IExec->FreeSignal(ctx.mainSig);
-        ctx.mainSig = -1;
+    if (ctx.timerSignal != -1) {
+        IExec->FreeSignal(ctx.timerSignal);
+        ctx.timerSignal = -1;
+    }
+
+    if (ctx.lastSignal != -1) {
+        IExec->FreeSignal(ctx.lastSignal);
+        ctx.lastSignal = -1;
     }
 
     TimerQuit(&ctx.sampler);
@@ -170,20 +177,24 @@ static void CleanupContext()
     }
 }
 
-int main(int /*argc*/, char** /*argv*/)
+int main(int argc, char* argv[])
 {
-    if (InitContext()) {
+    if (InitContext(argc, argv)) {
         if (ctx.gui) {
             GuiLoop();
         } else {
             ShellLoop();
         }
 
+        const uint32 signalMask = 1L << ctx.lastSignal;
+        const uint32 signal = IExec->Wait(signalMask);
+        if (ctx.debugMode && signal & signalMask) {
+            puts("Last signal received");
+        }
+
         if (ctx.profile) {
             ShowSymbols();
         }
-
-        TimerWait(1000000);
     }
 
     CleanupContext();

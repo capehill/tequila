@@ -14,6 +14,7 @@ static uint64 longest;
 
 void InterruptCode(void)
 {
+    BOOL quit = FALSE;
     struct MyClock start, finish;
 
     if (ctx.debugMode) {
@@ -56,13 +57,15 @@ void InterruptCode(void)
         flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
         ctx.back = ctx.sampleBuffers[flip];
         //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
-        IExec->Signal(ctx.mainTask, 1L << ctx.mainSig);
+        IExec->Signal(ctx.mainTask, 1L << ctx.timerSignal);
     }
 
     struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(ctx.sampler.port);
 
     if (request && ctx.running) {
         TimerStart(request, ctx.period);
+    } else {
+        quit = TRUE;
     }
 
     if (ctx.debugMode) {
@@ -72,6 +75,10 @@ void InterruptCode(void)
         if (duration > longest) {
             longest = duration;
         }
+    }
+
+    if (quit) {
+        IExec->Signal(ctx.mainTask, 1L << ctx.lastSignal);
     }
 }
 
@@ -310,7 +317,7 @@ static void ShowResults(void)
 
 void ShellLoop(void)
 {
-    const uint32 signalMask = 1L << ctx.mainSig;
+    const uint32 signalMask = 1L << ctx.timerSignal;
 
     while (ctx.running) {
         const uint32 wait = IExec->Wait(signalMask | SIGBREAKF_CTRL_C);

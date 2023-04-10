@@ -6,9 +6,13 @@
 #include "common.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <proto/dos.h>
 #include <proto/exec.h>
+#include <proto/icon.h>
+
+#include <workbench/startup.h>
 
 static const char* const version __attribute__((used)) = "$VER: " VERSION_STRING DATE_STRING;
 static const char* stackCookie __attribute__((used)) = "$STACK:64000";
@@ -48,7 +52,10 @@ static void ParseArgs(void)
     } else {
         printf("Supported arguments: %s\n", pattern);
     }
+}
 
+static void ValidateArgs(void)
+{
     if (ctx.samples < 99) {
         puts("Min samples (freq) 99 Hz");
         ctx.samples = 99;
@@ -60,25 +67,62 @@ static void ParseArgs(void)
     ctx.period = 1000000 / ctx.samples;
 
     if (ctx.interval < 1) {
-        puts("Min interval 1");
+        puts("Min interval 1 second");
         ctx.interval = 1;
     } else if (ctx.interval > 5) {
-        puts("Max interval 5");
+        puts("Max interval 5 seconds");
         ctx.interval = 5;
     }
 }
 
-static BOOL InitContext(const int /*argc*/, char* /*argv*/[])
+static int ToolTypeToNumber(struct DiskObject* diskObject, const char* const name)
+{
+    const char* const valueString = IIcon->FindToolType(diskObject->do_ToolTypes, name);
+    if (valueString) {
+        return atoi(valueString);
+    }
+
+    return 0;
+}
+
+static void ReadToolTypes(const char* const name)
+{
+    if (name) {
+        struct DiskObject* diskObject = IIcon->GetDiskObject(name);
+        if (diskObject) {
+            ctx.samples = ToolTypeToNumber(diskObject, "SAMPLES");
+            ctx.interval = ToolTypeToNumber(diskObject, "INTERVAL");
+            ctx.debugMode = IIcon->FindToolType(diskObject->do_ToolTypes, "DEBUG") != NULL;
+            ctx.profile = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
+            ctx.gui = IIcon->FindToolType(diskObject->do_ToolTypes, "GUI") != NULL;
+            IIcon->FreeDiskObject(diskObject);
+        }
+    }
+}
+
+static BOOL InitContext(const int argc, char* argv[])
 {
     ctx.timerSignal = -1;
     ctx.lastSignal = -1;
     ctx.samples = 999;
     ctx.interval = 1;
 
-    ParseArgs();
+    if (argc > 0) {
+        ParseArgs();
+        ReadToolTypes(argv[0]);
+    } else {
+        struct WBStartup* startup = (struct WBStartup *)argv;
+        struct WBArg* args = startup->sm_ArgList;
+
+        ReadToolTypes(args->wa_Name);
+    }
+
+    ValidateArgs();
 
     ctx.interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
         ASOINTR_Code, InterruptCode,
+        //ASOINTR_Name, "Tequila timer interrupt",
+        //ASOINTR_Pri, 0, // TODO
         TAG_DONE);
 
     if (!ctx.interrupt) {
@@ -132,7 +176,7 @@ static BOOL InitContext(const int /*argc*/, char* /*argv*/[])
 
     TimerInit(&ctx.sampler, ctx.interrupt);
 
-    ctx.interrupt->is_Node.ln_Name = (char *)"Tequila";
+    ctx.interrupt->is_Node.ln_Name = (char *)"Tequila"; // TODO
     ctx.running = TRUE;
 
     TimerStart(ctx.sampler.request, ctx.period);

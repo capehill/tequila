@@ -121,8 +121,8 @@ static BOOL InitContext(const int argc, char* argv[])
 
     ctx.interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
         ASOINTR_Code, InterruptCode,
-        //ASOINTR_Name, "Tequila timer interrupt",
-        //ASOINTR_Pri, 0, // TODO
+        ASOINTR_Name, "Tequila timer interrupt",
+        ASOINTR_Pri, 0, // TODO: is 0 value OK?
         TAG_DONE);
 
     if (!ctx.interrupt) {
@@ -176,7 +176,6 @@ static BOOL InitContext(const int argc, char* argv[])
 
     TimerInit(&ctx.sampler, ctx.interrupt);
 
-    ctx.interrupt->is_Node.ln_Name = (char *)"Tequila"; // TODO
     ctx.running = TRUE;
 
     TimerStart(ctx.sampler.request, ctx.period);

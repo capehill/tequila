@@ -125,10 +125,11 @@ static char* GetApplicationName()
     if (IDOS->GetCliProgramName(pathBuffer, maxPathLen - 1)) {
         //printf("GetCliProgramName: '%s'\n", pathBuffer);
     } else {
-        puts("Failed to get CLI program name, checking task node");
+        if (ctx.debugMode) {
+            puts("Failed to get CLI program name, checking task node");
+        }
 
-        struct Task* me = IExec->FindTask(NULL);
-        snprintf(pathBuffer, maxPathLen, "%s", ((struct Node *)me)->ln_Name);
+        snprintf(pathBuffer, maxPathLen, "%s", ((struct Node *)ctx.mainTask)->ln_Name);
     }
 
     //printf("Application name: '%s'\n", pathBuffer);

@@ -129,6 +129,11 @@ BOOL TimerInit(TimerContext* ctx, struct Interrupt* interrupt)
     }
 
     MyGetInterface(ctx->request->Request.io_Device);
+
+    if (!ITimer) {
+        goto clean;
+    }
+
     GetFrequency();
 
     return TRUE;

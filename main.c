@@ -4,6 +4,7 @@
 #include "version.h"
 #include "symbols.h"
 #include "common.h"
+#include "locale.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -222,6 +223,8 @@ static void CleanupContext()
 
 int main(int argc, char* argv[])
 {
+    LocaleInit();
+
     if (InitContext(argc, argv)) {
         if (ctx.gui) {
             GuiLoop();
@@ -231,7 +234,7 @@ int main(int argc, char* argv[])
 
         const uint32 signalMask = 1L << ctx.lastSignal;
         const uint32 signal = IExec->Wait(signalMask);
-        if (ctx.debugMode && signal & signalMask) {
+        if (ctx.debugMode && (signal & signalMask)) {
             puts("Last signal received");
         }
 
@@ -241,6 +244,8 @@ int main(int argc, char* argv[])
     }
 
     CleanupContext();
+
+    LocaleQuit();
 
     return 0;
 }

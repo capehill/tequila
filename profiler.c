@@ -3,6 +3,10 @@
 #include "symbols.h"
 #include "profiler.h"
 
+#define CATCOMP_NUMBERS
+#include "locale_generated.h"
+#include "locale.h"
+
 #include <proto/dos.h>
 #include <proto/exec.h>
 
@@ -192,13 +196,13 @@ static SampleInfo InitializeTaskData(struct Task* task)
         snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
     } else {
         if (task == ctx.mainTask) {
-            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (this task)");
+            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (%s)", GetString(MSG_THIS_TASK));
             ctx.taskInfo.stackUsage = GetStackUsage(task);
             ctx.taskInfo.pid = ((struct Process *)task)->pr_ProcessID;
             ctx.taskInfo.priority = ((struct Node *)task)->ln_Pri;
         } else {
             /* Could be some removed task */
-            snprintf(info.nameBuffer, NAME_LEN, "Unknown task %p", task);
+            snprintf(info.nameBuffer, NAME_LEN, "%s %p", GetString(MSG_UNKNOWN_TASK), task);
         }
     }
 
@@ -306,15 +310,26 @@ static void ShowResults(void)
     const size_t unique = PrepareResults();
     //const float usage = GetLoad(unique);
 
-    printf("%cc[[ Tequila ]] - frequency %lu Hz, idle %3.2f%%, tasks %u. Uptime %s\n",
-        0x1B, ctx.samples, GetIdleCpu(unique), GetTotalTaskCount(), GetUptimeString());
+    printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %u. %s %s\n",
+           0x1B,
+           GetString(MSG_IDLE),
+           GetIdleCpu(unique),
+           GetString(MSG_TASKS),
+           GetTotalTaskCount(),
+           GetString(MSG_UPTIME),
+           GetUptimeString());
 
-    printf("%-40s %6s %10s %10s %6s\n", "Task name:", "CPU %", "Priority", "Stack %", "PID");
+    printf("%-40s %6s %10s %10s %6s\n",
+           GetString(MSG_COLUMN_TASK),
+           GetString(MSG_COLUMN_CPU),
+           GetString(MSG_COLUMN_PRIORITY),
+           GetString(MSG_COLUMN_STACK),
+           GetString(MSG_COLUMN_PID));
 
     for (size_t i = 0; i < unique; i++) {
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
 
-        printf("%-40s %6.2f %10d %10.2f %6lu\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage, ctx.sampleInfo[i].pid);
+        printf("%-40s %6.1f %10d %10.1f %6lu\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage, ctx.sampleInfo[i].pid);
     }
 
     if (ctx.debugMode) {

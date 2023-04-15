@@ -1,0 +1,83 @@
+## version $VER: tequila.catalog 1.1 (14.04.2023)
+## codeset 4
+## language finnish
+;
+MSG_TEQUILA_ICONIFY
+I|Ikoniksi
+; I|Iconify
+;
+MSG_TEQUILA_ABOUT
+?|Tietoja...
+; A|About
+;
+MSG_TEQUILA_QUIT
+Q|Lopeta
+; Q|Quit
+;
+MSG_TEQUILA_ABOUT_REQ
+Tietoja ohjelmasta
+; About Tequila
+;
+MSG_TEQUILA_OK
+_Ok
+;
+MSG_COLUMN_TASK
+Ohjelma
+; Task
+;
+MSG_COLUMN_CPU
+Kuorma
+; CPU
+;
+MSG_COLUMN_PRIORITY
+Tärkeys
+; Priority
+;
+MSG_COLUMN_STACK
+Pino
+; Stack
+;
+MSG_COLUMN_PID
+Tunniste
+; PID
+;
+MSG_TASK_DISPLAY_HINT
+Ohjelma - suoritettavan ohjelman nimi\n Kuorma % - suorittimen kuorma\n Tärkeys - tärkeämmät ohjelmat saavat enemmän suoritinaikaa\n Pino % - pinomuistin käyttö\n Tunniste - prosessin tunniste (PID)
+; Task - task or process name\n CPU % - how much CPU task is using\nPriority - higher priority tasks get more CPU time\n Stack % - how much stack task is using\n PID - process ID. Plain tasks don't have PID
+;
+MSG_INFORMATION_LAYOUT_GAD
+Tietoa
+; Information
+;
+MSG_IDLE_INIT_VALUE
+Jouten --.--
+; Idle --.--
+;
+MSG_TASKS_INIT_VALUE
+Ohjelmat ---
+; Tasks ---
+;
+MSG_UPTIME_INIT_VALUE
+Käynnissä --:--:--
+; Uptime --:--:--
+;
+MSG_IDLE
+Jouten
+; Idle
+;
+MSG_TASKS
+Ohjelmat
+; Tasks
+;
+MSG_UPTIME
+Käynnissä
+; Uptime
+;
+MSG_THIS_TASK
+tämä ohjelma
+; this task
+;
+MSG_UNKNOWN_TASK
+Tuntematon ohjelma
+; Unknown task
+;

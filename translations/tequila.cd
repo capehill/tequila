@@ -1,0 +1,67 @@
+## version 1.1
+## language english
+## function GetStringGenerated
+;
+MSG_TEQUILA_ICONIFY (//)
+I|Iconify
+;
+MSG_TEQUILA_ABOUT (//)
+A|About
+;
+MSG_TEQUILA_QUIT (//)
+Q|Quit
+;
+MSG_TEQUILA_ABOUT_REQ (//)
+About Tequila
+;
+MSG_TEQUILA_OK (//)
+_Ok
+;
+MSG_COLUMN_TASK (//)
+Task
+;
+MSG_COLUMN_CPU (//)
+CPU
+;
+MSG_COLUMN_PRIORITY (//)
+Priority
+;
+MSG_COLUMN_STACK (//)
+Stack
+;
+MSG_COLUMN_PID (//)
+PID
+;
+MSG_TASK_DISPLAY_HINT (//)
+Task - task or process name\n \
+CPU % - how much CPU task is using\nPriority - higher priority tasks get more CPU time\n \
+Stack % - how much stack task is using\n \
+PID - process ID. Plain tasks don't have PID
+;
+MSG_INFORMATION_LAYOUT_GAD (//)
+Information
+;
+MSG_IDLE_INIT_VALUE (//)
+Idle --.--
+;
+MSG_TASKS_INIT_VALUE (//)
+Tasks ---
+;
+MSG_UPTIME_INIT_VALUE (//)
+Uptime --:--:--
+;
+MSG_IDLE (//)
+Idle
+;
+MSG_TASKS (//)
+Tasks
+;
+MSG_UPTIME (//)
+Uptime
+;
+MSG_THIS_TASK (//)
+this task
+;
+MSG_UNKNOWN_TASK (//)
+Unknown task
+;

@@ -3,6 +3,10 @@
 #include "profiler.h"
 #include "common.h"
 
+#define CATCOMP_NUMBERS
+#include "locale_generated.h"
+#include "locale.h"
+
 #include <proto/intuition.h>
 #include <proto/dos.h>
 #include <proto/exec.h>
@@ -11,6 +15,7 @@
 
 #include <classes/requester.h>
 #include <classes/window.h>
+#include <intuition/menuclass.h>
 
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
@@ -41,14 +46,6 @@ typedef enum EMenu {
     MID_About,
     MID_Quit
 } EMenu;
-
-static struct NewMenu menus[] = {
-    { NM_TITLE, "Tequila", NULL, 0, 0, NULL },
-    { NM_ITEM, "Iconify", "I", 0, 0, (APTR)MID_Iconify },
-    { NM_ITEM, "About...", "?", 0, 0, (APTR)MID_About },
-    { NM_ITEM, "Quit", "Q", 0, 0, (APTR)MID_Quit },
-    { NM_END, NULL, NULL, 0, 0, NULL }
-};
 
 static Object* objects[OID_Count];
 static struct Window* window;
@@ -149,9 +146,9 @@ static struct DiskObject* MyGetDiskObject()
 static void ShowAboutWindow()
 {
     objects[OID_AboutWindow] = IIntuition->NewObject(RequesterClass, NULL,
-        REQ_TitleText, "About Tequila",
+        REQ_TitleText, GetString(MSG_TEQUILA_ABOUT_REQ), // "About Tequila",
         REQ_BodyText, VERSION_STRING DATE_STRING,
-        REQ_GadgetText, "_Ok",
+        REQ_GadgetText, GetString(MSG_TEQUILA_OK),
         REQ_Image, REQIMAGE_INFO,
         TAG_DONE);
 
@@ -164,23 +161,49 @@ static void ShowAboutWindow()
     }
 }
 
+static Object* CreateMenu()
+{
+    return IIntuition->NewObject(NULL, "menuclass",
+        MA_Type, T_ROOT,
+        MA_AddChild, IIntuition->NewObject(NULL, "menuclass",
+            MA_Type, T_MENU,
+            MA_Label, "Tequila",
+            MA_AddChild, IIntuition->NewObject(NULL, "menuclass",
+                MA_Type, T_ITEM,
+                MA_Label, GetString(MSG_TEQUILA_ICONIFY),
+                MA_ID, MID_Iconify,
+                TAG_DONE),
+            MA_AddChild, IIntuition->NewObject(NULL, "menuclass",
+                MA_Type, T_ITEM,
+                MA_Label, GetString(MSG_TEQUILA_ABOUT),
+                MA_ID, MID_About,
+                TAG_DONE),
+            MA_AddChild, IIntuition->NewObject(NULL, "menuclass",
+                MA_Type, T_ITEM,
+                MA_Label, GetString(MSG_TEQUILA_QUIT),
+                MA_ID, MID_Quit,
+                TAG_DONE),
+            TAG_DONE),
+        TAG_DONE);
+}
+
 static Object* CreateGui()
 {
     columnInfo = IListBrowser->AllocLBColumnInfo(5,
                                                  LBCIA_Column, 0,
-                                                 LBCIA_Title, "Task",
+                                                 LBCIA_Title, GetString(MSG_COLUMN_TASK),
                                                  LBCIA_Weight, 60,
                                                  LBCIA_Column, 1,
-                                                 LBCIA_Title, "CPU %",
+                                                 LBCIA_Title, GetString(MSG_COLUMN_CPU),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_Column, 2,
-                                                 LBCIA_Title, "Priority",
+                                                 LBCIA_Title, GetString(MSG_COLUMN_PRIORITY),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_Column, 3,
-                                                 LBCIA_Title, "Stack %",
+                                                 LBCIA_Title, GetString(MSG_COLUMN_STACK),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_Column, 4,
-                                                 LBCIA_Title, "PID",
+                                                 LBCIA_Title, GetString(MSG_COLUMN_PID),
                                                  LBCIA_Weight, 10,
                                                  TAG_DONE);
 
@@ -198,12 +221,6 @@ static Object* CreateGui()
 
     IExec->NewList(&labelList);
 
-    static const char* const listBrowserHelp = "Task - task or process name\n"
-        "CPU % - how much CPU task is using\n"
-        "Priority - higher priority tasks get more CPU time\n"
-        "Stack % - how much stack task is using\n"
-        "PID - process ID. Plain tasks don't have PID";
-
     return IIntuition->NewObject(WindowClass, NULL,
         WA_ScreenTitle, VERSION_STRING DATE_STRING,
         WA_Title, VERSION_STRING,
@@ -215,37 +232,37 @@ static Object* CreateGui()
         WA_Width, 640,
         WA_Height, 480,
         //WA_IDCMP, IDCMP_RAWKEY,
+        WA_MenuStrip, CreateMenu(),
         WINDOW_Position, WPOS_CENTERMOUSE,
         WINDOW_IconifyGadget, TRUE,
         WINDOW_Icon, MyGetDiskObject(),
         WINDOW_AppPort, port, // Iconification needs it
         WINDOW_GadgetHelp, TRUE,
-        WINDOW_NewMenu, menus,
         WINDOW_Layout, IIntuition->NewObject(LayoutClass, NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
 
             LAYOUT_AddChild, objects[OID_InfoLayout] = IIntuition->NewObject(LayoutClass, NULL,
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-                LAYOUT_Label, "Information",
+                LAYOUT_Label, GetString(MSG_INFORMATION_LAYOUT_GAD),
                 LAYOUT_BevelStyle, BVS_GROUP,
 
                 LAYOUT_AddChild, objects[OID_Idle] = IIntuition->NewObject(ButtonClass, NULL,
                     GA_ReadOnly, TRUE,
-                    GA_Text, "Idle --.--%",
+                    GA_Text, GetString(MSG_IDLE_INIT_VALUE),
                     BUTTON_BevelStyle, BVS_NONE,
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
 
                 LAYOUT_AddChild, objects[OID_Tasks] = IIntuition->NewObject(ButtonClass, NULL,
                     GA_ReadOnly, TRUE,
-                    GA_Text, "Tasks ---",
+                    GA_Text, GetString(MSG_TASKS_INIT_VALUE),
                     BUTTON_BevelStyle, BVS_NONE,
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
 
                 LAYOUT_AddChild, objects[OID_Uptime] = IIntuition->NewObject(ButtonClass, NULL,
                     GA_ReadOnly, TRUE,
-                    GA_Text, "Uptime --:--:--",
+                    GA_Text, GetString(MSG_UPTIME_INIT_VALUE),
                     BUTTON_BevelStyle, BVS_NONE,
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
@@ -255,7 +272,7 @@ static Object* CreateGui()
 
             LAYOUT_AddChild, objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
                 GA_ReadOnly, TRUE,
-                GA_HintInfo, listBrowserHelp,
+                GA_HintInfo, GetString(MSG_TASK_DISPLAY_HINT),
                 GA_ID, GID_ListBrowser,
                 LISTBROWSER_ColumnInfo, columnInfo,
                 LISTBROWSER_ColumnTitles, TRUE,
@@ -286,13 +303,11 @@ static void HandleUniconify(void)
     window = (struct Window *)IIntuition->IDoMethod(objects[OID_Window], WM_OPEN);
 }
 
-static BOOL HandleMenupick(uint16 menuNumber)
+static BOOL HandleMenupick(void)
 {
-    struct MenuItem* item = IIntuition->ItemAddress(window->MenuStrip, menuNumber);
+    uint32 id = NO_MENU_ID;
 
-    if (item) {
-        const EMenu id = (EMenu)GTMENUITEM_USERDATA(item);
-        //printf("menu %x, menu num %d, item num %d, userdata %d\n", menuNumber, MENUNUM(menuNumber), ITEMNUM(menuNumber), (EMenu)GTMENUITEM_USERDATA(item));
+    while (window && ((id = IIntuition->IDoMethod((Object *)window->MenuStrip, MM_NEXTSELECT, 0, id))) != NO_MENU_ID) {
         switch (id) {
             case MID_Iconify: HandleIconify(); break;
             case MID_About: ShowAboutWindow(); break;
@@ -310,13 +325,13 @@ static void UpdateDisplay(void)
 
     //const float usage = getLoad(unique);
 
-    static char tasksString[16];
     static char idleString[16];
+    static char tasksString[16];
     static char uptimeString[64];
 
-    snprintf(tasksString, sizeof(tasksString), "Tasks %u", GetTotalTaskCount());
-    snprintf(idleString, sizeof(idleString), "Idle %3.2f%%", GetIdleCpu(unique));
-    snprintf(uptimeString, sizeof(uptimeString), "Uptime %s", GetUptimeString());
+    snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu(unique));
+    snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
+    snprintf(uptimeString, sizeof(uptimeString), "%s %s", GetString(MSG_UPTIME), GetUptimeString());
 
     IIntuition->SetAttrs(objects[OID_Idle],
                          GA_Text, idleString,
@@ -358,8 +373,8 @@ static void UpdateDisplay(void)
         const int32 priorityBuffer = ctx.sampleInfo[i].priority;
         const int32 pidBuffer = ctx.sampleInfo[i].pid;
 
-        snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.2f", cpu);
-        snprintf(stackBuffer, sizeof(stackBuffer), "%3.2f", ctx.sampleInfo[i].stackUsage);
+        snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.1f", cpu);
+        snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
 
         IListBrowser->SetListBrowserNodeAttrs(nodes[i],
                                               LBNA_Column, 0,
@@ -429,7 +444,7 @@ static void HandleEvents(void)
                         HandleUniconify();
                         break;
                     case WMHI_MENUPICK:
-                        running = HandleMenupick(result & WMHI_MENUMASK);
+                        running = HandleMenupick();
                         break;
                     case WMHI_RAWKEY:
                         running = HandleRawKey(code);

@@ -223,6 +223,8 @@ static void CleanupContext()
 
 int main(int argc, char* argv[])
 {
+    signal(SIGINT, SIG_IGN);
+
     LocaleInit();
 
     if (InitContext(argc, argv)) {

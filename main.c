@@ -24,15 +24,16 @@ typedef struct Params {
     LONG debug;
     LONG profile;
     LONG gui;
+    LONG customRendering;
 } Params;
 
-static Params params = { NULL, NULL, 0, 0, 0 };
+static Params params = { NULL, NULL, 0, 0, 0, 0};
 
 Context ctx;
 
 static void ParseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S,GUI/S";
+    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S,GUI/S,CUSTOMRENDERING/S";
 
     struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -48,6 +49,7 @@ static void ParseArgs(void)
         ctx.debugMode = params.debug;
         ctx.profile = params.profile;
         ctx.gui = params.gui;
+        ctx.customRendering = params.customRendering;
 
         IDOS->FreeArgs(result);
     } else {
@@ -96,6 +98,7 @@ static void ReadToolTypes(const char* const name)
             ctx.debugMode = IIcon->FindToolType(diskObject->do_ToolTypes, "DEBUG") != NULL;
             ctx.profile = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
             ctx.gui = IIcon->FindToolType(diskObject->do_ToolTypes, "GUI") != NULL;
+            ctx.customRendering = IIcon->FindToolType(diskObject->do_ToolTypes, "CUSTOMRENDERING") != NULL;
             IIcon->FreeDiskObject(diskObject);
         }
     }

@@ -36,6 +36,7 @@ typedef struct Context {
     BOOL profile;
     BOOL gui;
     BOOL running;
+    BOOL customRendering;
 
     BYTE timerSignal;
     BYTE lastSignal;

@@ -63,7 +63,6 @@ static struct CustomRendering cr;
 
 static Object* objects[OID_Count];
 static struct Window* window;
-static struct MsgPort* port;
 
 static struct ClassLibrary* WindowBase;
 static struct ClassLibrary* RequesterBase;
@@ -83,14 +82,12 @@ static struct ColumnInfo* columnInfo;
 static struct List labelList;
 static struct Node* nodes[MAX_NODES];
 
-static size_t max;
+static size_t uniqueTasks; // number of unique tasks (per round)
 
 static void RemoveLabelNodes(void)
 {
-    if (!ctx.customRendering) {
-        while (IExec->RemHead(&labelList) != NULL) {
-            //
-        }
+    while (IExec->RemHead(&labelList) != NULL) {
+        //
     }
 }
 
@@ -238,40 +235,6 @@ static uint32 RenderHook(struct Hook* hook __attribute__((unused)), APTR space, 
     return 0;
 }
 
-static Object* CreateTaskDisplay(void)
-{
-    if (ctx.customRendering) {
-        static struct Hook renderHook = {
-            { 0, 0 },
-            (HOOKFUNC)RenderHook, /* entry */
-            NULL, /* subentry */
-            NULL /* data */
-        };
-
-        return IIntuition->NewObject(LayoutClass, NULL,
-                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-                LAYOUT_BevelStyle, BVS_GROUP,
-                LAYOUT_AddChild, objects[OID_Space] = IIntuition->NewObject(SpaceClass, NULL,
-                    GA_ID, GID_Space,
-                    SPACE_Transparent, TRUE,
-                    SPACE_RenderHook, renderHook,
-                    TAG_DONE),
-                TAG_DONE);
-    } else {
-        objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
-            GA_ReadOnly, TRUE,
-            GA_HintInfo, GetString(MSG_TASK_DISPLAY_HINT),
-            GA_ID, GID_ListBrowser,
-            LISTBROWSER_ColumnInfo, columnInfo,
-            LISTBROWSER_ColumnTitles, TRUE,
-            LISTBROWSER_Labels, &labelList,
-            LISTBROWSER_Striping, TRUE,
-            TAG_DONE);
-
-        return objects[OID_ListBrowser];
-   }
-}
-
 static void ResizeBitMap(int w, int h)
 {
     if (w > cr.width || h > cr.height) {
@@ -293,67 +256,117 @@ static void ResizeBitMap(int w, int h)
     }
 }
 
-static Object* CreateGui(void)
+static BOOL InitCustomRendering(void)
+{
+    IGraphics->InitRastPort(&cr.rp);
+
+    ResizeBitMap(640, 480);
+
+    if (!cr.bitmap) {
+        puts("Failed to create bitmap");
+        return FALSE;
+    }
+
+    char buffer[16];
+    size_t len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
+    cr.columnWidth[0] = IGraphics->TextLength(&cr.rp, buffer, len);
+
+    len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_CPU));
+    cr.columnWidth[1] = IGraphics->TextLength(&cr.rp, buffer, len);
+
+    len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PRIORITY));
+    cr.columnWidth[2] = IGraphics->TextLength(&cr.rp, buffer, len);
+
+    len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_STACK));
+    cr.columnWidth[3] = IGraphics->TextLength(&cr.rp, buffer, len);
+
+    len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PID));
+    cr.columnWidth[4] = IGraphics->TextLength(&cr.rp, buffer, len);
+
+    return TRUE;
+}
+
+static BOOL InitListBrowserData(void)
+{
+    columnInfo = IListBrowser->AllocLBColumnInfo(5,
+                                                 LBCIA_Column, 0,
+                                                 LBCIA_Title, GetString(MSG_COLUMN_TASK),
+                                                 LBCIA_Weight, 60,
+                                                 LBCIA_Column, 1,
+                                                 LBCIA_Title, GetString(MSG_COLUMN_CPU),
+                                                 LBCIA_Weight, 10,
+                                                 LBCIA_Column, 2,
+                                                 LBCIA_Title, GetString(MSG_COLUMN_PRIORITY),
+                                                 LBCIA_Weight, 10,
+                                                 LBCIA_Column, 3,
+                                                 LBCIA_Title, GetString(MSG_COLUMN_STACK),
+                                                 LBCIA_Weight, 10,
+                                                 LBCIA_Column, 4,
+                                                 LBCIA_Title, GetString(MSG_COLUMN_PID),
+                                                 LBCIA_Weight, 10,
+                                                 TAG_DONE);
+
+    if (!columnInfo) {
+        puts("Failed to allocate listbrowser column info");
+        return FALSE;
+    }
+
+    for (int i = 0; i < MAX_NODES; i++) {
+        nodes[i] = IListBrowser->AllocListBrowserNode(5, TAG_DONE);
+        if (!nodes[i]) {
+            printf("Failed to allocate listbrowser node %d\n", i);
+            return FALSE;
+        }
+    }
+
+    IExec->NewList(&labelList);
+    return TRUE;
+}
+
+static Object* CreateTaskDisplay(void)
 {
     if (ctx.customRendering) {
-        IGraphics->InitRastPort(&cr.rp);
+        static struct Hook renderHook = {
+            { 0, 0 },
+            (HOOKFUNC)RenderHook, /* entry */
+            NULL, /* subentry */
+            NULL /* data */
+        };
 
-        ResizeBitMap(640, 480);
-
-        if (!cr.bitmap) {
-            puts("Failed to create bitmap");
+        if (!InitCustomRendering()) {
             return NULL;
         }
 
-        char buffer[16];
-        size_t len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
-        cr.columnWidth[0] = IGraphics->TextLength(&cr.rp, buffer, len);
-
-        len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_CPU));
-        cr.columnWidth[1] = IGraphics->TextLength(&cr.rp, buffer, len);
-
-        len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PRIORITY));
-        cr.columnWidth[2] = IGraphics->TextLength(&cr.rp, buffer, len);
-
-        len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_STACK));
-        cr.columnWidth[3] = IGraphics->TextLength(&cr.rp, buffer, len);
-
-        len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PID));
-        cr.columnWidth[4] = IGraphics->TextLength(&cr.rp, buffer, len);
+        return IIntuition->NewObject(LayoutClass, NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+                LAYOUT_BevelStyle, BVS_GROUP,
+                LAYOUT_AddChild, objects[OID_Space] = IIntuition->NewObject(SpaceClass, NULL,
+                    GA_ID, GID_Space,
+                    SPACE_Transparent, TRUE,
+                    SPACE_RenderHook, renderHook,
+                    TAG_DONE),
+                TAG_DONE);
     } else {
-        columnInfo = IListBrowser->AllocLBColumnInfo(5,
-                                                     LBCIA_Column, 0,
-                                                     LBCIA_Title, GetString(MSG_COLUMN_TASK),
-                                                     LBCIA_Weight, 60,
-                                                     LBCIA_Column, 1,
-                                                     LBCIA_Title, GetString(MSG_COLUMN_CPU),
-                                                     LBCIA_Weight, 10,
-                                                     LBCIA_Column, 2,
-                                                     LBCIA_Title, GetString(MSG_COLUMN_PRIORITY),
-                                                     LBCIA_Weight, 10,
-                                                     LBCIA_Column, 3,
-                                                     LBCIA_Title, GetString(MSG_COLUMN_STACK),
-                                                     LBCIA_Weight, 10,
-                                                     LBCIA_Column, 4,
-                                                     LBCIA_Title, GetString(MSG_COLUMN_PID),
-                                                     LBCIA_Weight, 10,
-                                                     TAG_DONE);
-
-        if (!columnInfo) {
-            puts("Failed to allocate listbrowser column info");
-            //return NULL;
+        if (!InitListBrowserData()) {
+            return NULL;
         }
 
-        for (int i = 0; i < MAX_NODES; i++) {
-            nodes[i] = IListBrowser->AllocListBrowserNode(5, TAG_DONE);
-            if (!nodes[i]) {
-                printf("Failed to allocate listbrowser node %d\n", i);
-            }
-        }
+        objects[OID_ListBrowser] = IIntuition->NewObject(ListBrowserClass, NULL,
+            GA_ReadOnly, TRUE,
+            GA_HintInfo, GetString(MSG_TASK_DISPLAY_HINT),
+            GA_ID, GID_ListBrowser,
+            LISTBROWSER_ColumnInfo, columnInfo,
+            LISTBROWSER_ColumnTitles, TRUE,
+            LISTBROWSER_Labels, &labelList,
+            LISTBROWSER_Striping, TRUE,
+            TAG_DONE);
 
-        IExec->NewList(&labelList);
-    }
+        return objects[OID_ListBrowser];
+   }
+}
 
+static Object* CreateGui(struct MsgPort* port)
+{
     return IIntuition->NewObject(WindowClass, NULL,
         WA_ScreenTitle, VERSION_STRING DATE_STRING,
         WA_Title, VERSION_STRING,
@@ -505,7 +518,7 @@ static void UpdateBitMap(void)
         }
 
         /* Dynamic content */
-        for (size_t i = 0; i < max; i++) {
+        for (size_t i = 0; i < uniqueTasks; i++) {
             const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
 
             yOffset += cr.rp.TxHeight;
@@ -552,7 +565,7 @@ static void UpdateListBrowser(void)
 
     RemoveLabelNodes();
 
-    for (size_t i = 0; i < max; i++) {
+    for (size_t i = 0; i < uniqueTasks; i++) {
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
         static char cpuBuffer[10];
         static char stackBuffer[10];
@@ -591,7 +604,7 @@ static void UpdateListBrowser(void)
 static void UpdateDisplay(void)
 {
     const size_t unique = PrepareResults();
-    /*const size_t*/ max = unique > MAX_NODES ? MAX_NODES : unique;
+    uniqueTasks = unique < MAX_NODES ? unique : MAX_NODES;
 
     //const float usage = getLoad(unique);
 
@@ -711,8 +724,7 @@ static void HandleEvents(void)
 void GuiLoop(void)
 {
     if (OpenClasses()) {
-        // TODO: port declaration
-    	port = IExec->AllocSysObjectTags(ASOT_PORT,
+    	struct MsgPort* port = IExec->AllocSysObjectTags(ASOT_PORT,
     		ASOPORT_Name, "tequila_app_port",
     		TAG_DONE);
 
@@ -720,7 +732,7 @@ void GuiLoop(void)
             puts("Failed to open msg port");
         }
 
-        objects[OID_Window] = CreateGui();
+        objects[OID_Window] = CreateGui(port);
 
         if (objects[OID_Window]) {
             if ((window = (struct Window *)IIntuition->IDoMethod(objects[OID_Window], WM_OPEN))) {

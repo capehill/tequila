@@ -252,6 +252,11 @@ size_t PrepareResults(void)
 
     qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), Comparison);
 
+    const ULONG dispCount = ((struct ExecBase *)SysBase)->DispCount;
+
+    ctx.taskSwitches = dispCount - ctx.lastDispCount;
+    ctx.lastDispCount = dispCount;
+
     return unique;
 }
 /*
@@ -310,12 +315,14 @@ static void ShowResults(void)
     const size_t unique = PrepareResults();
     //const float usage = GetLoad(unique);
 
-    printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %u. %s %s\n",
+    printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %u. %s %lu. %s %s\n",
            0x1B,
            GetString(MSG_IDLE),
            GetIdleCpu(unique),
            GetString(MSG_TASKS),
            GetTotalTaskCount(),
+           GetString(MSG_TASK_SWITCHES),
+           (ULONG)(ctx.taskSwitches / (float)ctx.interval),
            GetString(MSG_UPTIME),
            GetUptimeString());
 

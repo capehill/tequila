@@ -47,6 +47,9 @@ Idle --.--
 MSG_TASKS_INIT_VALUE (//)
 Tasks ---
 ;
+MSG_TASK_SWITCHES_INIT_VALUE (//)
+Task switches / s ---
+;
 MSG_UPTIME_INIT_VALUE (//)
 Uptime --:--:--
 ;
@@ -64,4 +67,7 @@ this task
 ;
 MSG_UNKNOWN_TASK (//)
 Unknown task
+;
+MSG_TASK_SWITCHES (//)
+Task switches / s
 ;

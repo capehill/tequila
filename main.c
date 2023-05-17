@@ -184,6 +184,8 @@ static BOOL InitContext(const int argc, char* argv[])
 
     TimerStart(ctx.sampler.request, ctx.period);
 
+    ctx.lastDispCount = ((struct ExecBase *)SysBase)->DispCount;
+
     return TRUE;
 }
 

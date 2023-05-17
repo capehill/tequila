@@ -35,6 +35,7 @@ enum EObject {
     OID_InfoLayout,
     OID_Uptime,
     OID_Tasks,
+    OID_TaskSwitches,
     OID_Idle,
     OID_Space,
     OID_Count // KEEP LAST
@@ -407,6 +408,13 @@ static Object* CreateGui(struct MsgPort* port)
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
 
+                LAYOUT_AddChild, objects[OID_TaskSwitches] = IIntuition->NewObject(ButtonClass, NULL,
+                    GA_ReadOnly, TRUE,
+                    GA_Text, GetString(MSG_TASK_SWITCHES_INIT_VALUE),
+                    BUTTON_BevelStyle, BVS_NONE,
+                    BUTTON_Transparent, TRUE,
+                    TAG_DONE),
+
                 LAYOUT_AddChild, objects[OID_Uptime] = IIntuition->NewObject(ButtonClass, NULL,
                     GA_ReadOnly, TRUE,
                     GA_Text, GetString(MSG_UPTIME_INIT_VALUE),
@@ -610,10 +618,12 @@ static void UpdateDisplay(void)
 
     static char idleString[16];
     static char tasksString[16];
+    static char taskSwitchesString[32];
     static char uptimeString[64];
 
     snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu(unique));
     snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
+    snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), (ULONG)(ctx.taskSwitches / (float)ctx.interval));
     snprintf(uptimeString, sizeof(uptimeString), "%s %s", GetString(MSG_UPTIME), GetUptimeString());
 
     IIntuition->SetAttrs(objects[OID_Idle],
@@ -622,6 +632,10 @@ static void UpdateDisplay(void)
 
     IIntuition->SetAttrs(objects[OID_Tasks],
                          GA_Text, tasksString,
+                         TAG_DONE);
+
+    IIntuition->SetAttrs(objects[OID_TaskSwitches],
+                         GA_Text, taskSwitchesString,
                          TAG_DONE);
 
     IIntuition->SetAttrs(objects[OID_Uptime],

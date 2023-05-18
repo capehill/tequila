@@ -57,6 +57,10 @@ MSG_TASKS_INIT_VALUE
 Ohjelmat ---
 ; Tasks ---
 ;
+MSG_TASK_SWITCHES_INIT_VALUE
+Ohjelmanvaihtoa / s ---
+; Task switches / s ---
+;
 MSG_UPTIME_INIT_VALUE
 Käynnissä --:--:--
 ; Uptime --:--:--
@@ -80,4 +84,8 @@ tämä ohjelma
 MSG_UNKNOWN_TASK
 Tuntematon ohjelma
 ; Unknown task
+;
+MSG_TASK_SWITCHES
+Ohjelmanvaihtoa / s
+; Task switches / s
 ;

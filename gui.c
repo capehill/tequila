@@ -623,7 +623,7 @@ static void UpdateDisplay(void)
 
     snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu(unique));
     snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
-    snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), (ULONG)(ctx.taskSwitches / (float)ctx.interval));
+    snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), ctx.taskSwitchesPerSecond);
     snprintf(uptimeString, sizeof(uptimeString), "%s %s", GetString(MSG_UPTIME), GetUptimeString());
 
     IIntuition->SetAttrs(objects[OID_Idle],

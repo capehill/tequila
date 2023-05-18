@@ -31,7 +31,7 @@ typedef struct Context {
     ULONG period;
     ULONG samples;
     ULONG interval;
-    ULONG taskSwitches;
+    ULONG taskSwitchesPerSecond;
     ULONG lastDispCount;
 
     BOOL debugMode;

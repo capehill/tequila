@@ -254,7 +254,7 @@ size_t PrepareResults(void)
 
     const ULONG dispCount = ((struct ExecBase *)SysBase)->DispCount;
 
-    ctx.taskSwitches = dispCount - ctx.lastDispCount;
+    ctx.taskSwitchesPerSecond = (dispCount - ctx.lastDispCount) / ctx.interval;
     ctx.lastDispCount = dispCount;
 
     return unique;
@@ -322,7 +322,7 @@ static void ShowResults(void)
            GetString(MSG_TASKS),
            GetTotalTaskCount(),
            GetString(MSG_TASK_SWITCHES),
-           (ULONG)(ctx.taskSwitches / (float)ctx.interval),
+           ctx.taskSwitchesPerSecond,
            GetString(MSG_UPTIME),
            GetUptimeString());
 

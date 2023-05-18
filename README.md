@@ -1,7 +1,6 @@
 # Tequila
 
-Tequila is a simple CPU profiler which samples current running tasks. At the moment it's not very
-accurate or feature-rich, but it will detect if some task is using CPU.
+Tequila is a simple CPU profiler which samples current running tasks.
 
 
 ## Command-line parameters / icon tooltypes
@@ -15,6 +14,8 @@ DEBUG - some additional logging.
 PROFILE - try to collect symbol data. Note: it doesn't work properly yet.
 
 GUI - start in window mode.
+
+CUSTOMRENDERING - display task list without using listbrowser.gadget.
 
 
 ## Keyboard shortcuts
@@ -48,3 +49,14 @@ Hieronymus: http://os4depot.net/?function=showfile&file=development/debug/hieron
 
 Profyler: http://os4depot.net/?function=showfile&file=development/debug/profyler.lha
 
+
+## Version history
+
+1.1
+- Add custom rendering.
+- Add locale support.
+- Display task switches / second.
+- Fix issue with occasional unfreed signals at exit.
+
+1.0
+- First public release.

@@ -554,7 +554,12 @@ static void UpdateBitMap(void)
             IGraphics->Move(&cr.rp, xOffset[3] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            len = snprintf(buffer, sizeof(buffer), "%ld", ctx.sampleInfo[i].pid);
+            if (ctx.sampleInfo[i].pid > 0) {
+                len = snprintf(buffer, sizeof(buffer), "%lu", ctx.sampleInfo[i].pid);
+            } else {
+                len = snprintf(buffer, sizeof(buffer), "(task)");
+            }
+
             textLength = IGraphics->TextLength(&cr.rp, buffer, len);
 
             IGraphics->Move(&cr.rp, xOffset[4] - textLength, yOffset);
@@ -577,11 +582,16 @@ static void UpdateListBrowser(void)
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
         static char cpuBuffer[10];
         static char stackBuffer[10];
+        static char pidBuffer[16];
         const int32 priorityBuffer = ctx.sampleInfo[i].priority;
-        const int32 pidBuffer = ctx.sampleInfo[i].pid;
 
         snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.1f", cpu);
         snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
+        if (ctx.sampleInfo[i].pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        } else {
+            snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
+        }
 
         IListBrowser->SetListBrowserNodeAttrs(nodes[i],
                                               LBNA_Column, 0,
@@ -597,8 +607,8 @@ static void UpdateListBrowser(void)
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, stackBuffer,
                                               LBNA_Column, 4,
-                                                LBNCA_CopyInteger, TRUE,
-                                                LBNCA_Integer, &pidBuffer,
+                                                LBNCA_CopyText, TRUE,
+                                                LBNCA_Text, pidBuffer,
                                               TAG_DONE);
 
         IExec->AddTail(&labelList, nodes[i]);

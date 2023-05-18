@@ -336,7 +336,20 @@ static void ShowResults(void)
     for (size_t i = 0; i < unique; i++) {
         const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
 
-        printf("%-40s %6.1f %10d %10.1f %6lu\n", ctx.sampleInfo[i].nameBuffer, cpu, ctx.sampleInfo[i].priority, ctx.sampleInfo[i].stackUsage, ctx.sampleInfo[i].pid);
+        static char pidBuffer[16];
+
+        if (ctx.sampleInfo[i].pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        } else {
+            snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
+        }
+
+        printf("%-40s %6.1f %10d %10.1f %6s\n",
+               ctx.sampleInfo[i].nameBuffer,
+               cpu,
+               ctx.sampleInfo[i].priority,
+               ctx.sampleInfo[i].stackUsage,
+               pidBuffer);
     }
 
     if (ctx.debugMode) {

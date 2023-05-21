@@ -8,6 +8,8 @@
 
 #define NAME_LEN 256
 
+// TODO: documentation needed
+
 typedef struct TaskInfo {
     float stackUsage;
     uint32 pid;
@@ -26,6 +28,11 @@ typedef struct SampleInfo {
     uint32 pid;
     BYTE priority;
 } SampleInfo;
+
+typedef struct SampleData {
+    Sample* sampleBuffer;
+    uint32 forbidCount;
+} SampleData;
 
 typedef struct Context {
     ULONG period;
@@ -48,9 +55,9 @@ typedef struct Context {
 
     SampleInfo* sampleInfo;
 
-    Sample* sampleBuffers[2];
-    Sample* front;
-    Sample* back;
+    SampleData sampleData[2];
+    SampleData* front;
+    SampleData* back;
 
     char* nameBuffer;
     char* cliNameBuffer;

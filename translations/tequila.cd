@@ -71,3 +71,6 @@ Unknown task
 MSG_TASK_SWITCHES (//)
 Task switches / s
 ;
+MSG_FORBID (//)
+Forbid
+;

@@ -31,7 +31,10 @@ void InterruptCode(void)
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
 
-    ctx.back[counter].task = task;
+    ctx.back->sampleBuffer[counter].task = task;
+    if (sysbase->TDNestCnt > 0) {
+        ctx.back->forbidCount++;
+    }
 
     if (ctx.profile) {
         static unsigned addressCounter = 0;
@@ -57,9 +60,9 @@ void InterruptCode(void)
         static int flip = 0;
 
         counter = 0;
-        ctx.front = ctx.sampleBuffers[flip];
+        ctx.front = &ctx.sampleData[flip];
         flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
-        ctx.back = ctx.sampleBuffers[flip];
+        ctx.back = &ctx.sampleData[flip];
         //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
         IExec->Signal(ctx.mainTask, 1L << ctx.timerSignal);
     }
@@ -231,7 +234,7 @@ size_t PrepareResults(void)
     size_t unique = 0;
 
     for (size_t sample = 0; sample < ctx.interval * ctx.samples; sample++) {
-        struct Task* task = ctx.front[sample].task;
+        struct Task* task = ctx.front->sampleBuffer[sample].task;
 
         BOOL found = FALSE;
 
@@ -297,6 +300,13 @@ float GetIdleCpu(const size_t count)
     return idleCpu;
 }
 
+float GetForbidCpu(void)
+{
+    const float forbid = 100.0f * ctx.front->forbidCount / (ctx.samples * ctx.interval);
+    ctx.front->forbidCount = 0;
+    return forbid;
+}
+
 /*
 static float GetLoad(const size_t count)
 {
@@ -315,10 +325,12 @@ static void ShowResults(void)
     const size_t unique = PrepareResults();
     //const float usage = GetLoad(unique);
 
-    printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %u. %s %lu. %s %s\n",
+    printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %3.1f%%. %s %u. %s %lu. %s %s\n",
            0x1B,
            GetString(MSG_IDLE),
            GetIdleCpu(unique),
+           GetString(MSG_FORBID),
+           GetForbidCpu(),
            GetString(MSG_TASKS),
            GetTotalTaskCount(),
            GetString(MSG_TASK_SWITCHES),

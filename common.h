@@ -72,8 +72,6 @@ extern Context ctx;
 
 APTR AllocateMemory(size_t size);
 void FreeMemory(APTR address);
-size_t StringLen(const char* str);
-void CopyString(char* const to, const char* const from, size_t len);
 
 #endif
 

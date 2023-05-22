@@ -89,7 +89,7 @@ void InterruptCode(void)
     }
 }
 
-static void GetCliName(struct Task* task)
+static size_t GetCliName(struct Task* task)
 {
     ctx.cliNameBuffer[0] = '\0';
 
@@ -100,15 +100,27 @@ static void GetCliName(struct Task* task)
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
-                CopyString(ctx.cliNameBuffer, " [", 2);
+                // This should create a string like " [command name]"
+                ctx.cliNameBuffer[0] = ' ';
+                ctx.cliNameBuffer[1] = '[';
+                ctx.cliNameBuffer[2] = '\0';
 
-                // BSTR
+                // BSTR (should be NUL-terminated)
                 size_t len = *(UBYTE *)commandName;
-                CopyString(ctx.cliNameBuffer + StringLen(ctx.cliNameBuffer), commandName + 1, len);
-                CopyString(ctx.cliNameBuffer + StringLen(ctx.cliNameBuffer), "]", 1);
+                strlcpy(ctx.cliNameBuffer + 2, commandName + 1, NAME_LEN - 2);
+
+                if (len < (NAME_LEN - 3)) {
+                    ctx.cliNameBuffer[2 + len] = ']';
+                    ctx.cliNameBuffer[3 + len] = '\0';
+                    return len + 3;
+                }
+
+                return len + 2;
             }
         }
     }
+
+    return 0;
 }
 
 static float GetStackUsage(struct Task* task)
@@ -125,12 +137,13 @@ static BOOL Traverse(struct List* list, struct Task* target)
         struct Task* task = (struct Task *)node;
 
         if (task == target) {
-            GetCliName(task);
+            const size_t cliNameLen = GetCliName(task);
+            const size_t nameLen = strlen(node->ln_Name);
 
-            CopyString(ctx.nameBuffer, node->ln_Name, StringLen(node->ln_Name));
+            strlcpy(ctx.nameBuffer, node->ln_Name, NAME_LEN);
 
-            if (StringLen(ctx.cliNameBuffer) > 0) {
-                CopyString(ctx.nameBuffer + StringLen(ctx.nameBuffer), ctx.cliNameBuffer, StringLen(ctx.cliNameBuffer));
+            if (cliNameLen > 0) {
+                strlcpy(ctx.nameBuffer + nameLen, ctx.cliNameBuffer, NAME_LEN - nameLen);
             }
 
             ctx.taskInfo.priority = node->ln_Pri;

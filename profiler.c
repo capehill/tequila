@@ -270,20 +270,7 @@ size_t PrepareResults(void)
 
     return unique;
 }
-/*
-static char* GetCpuState(const float usage)
-{
-    if (usage >= 90.0f) {
-        return "BUSY";
-    } else if (usage >= 50.0f) {
-        return "HEAVY LOAD";
-    } else if (usage >= 5.0f) {
-        return "SOME LOAD";
-    }
 
-    return "IDLING";
-}
-*/
 float GetIdleCpu(const size_t count)
 {
     float idleCpu = 0.0f;
@@ -315,13 +302,6 @@ float GetForbidCpu(void)
     return forbid;
 }
 
-/*
-static float GetLoad(const size_t count)
-{
-    return 100.0f - GetIdleCpu(count);
-}
-*/
-
 static void ShowResults(void)
 {
     MyClock start, finish;
@@ -331,7 +311,6 @@ static void ShowResults(void)
     }
 
     const size_t unique = PrepareResults();
-    //const float usage = GetLoad(unique);
 
     printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %3.1f%%. %s %u. %s %lu. %s %s\n",
            0x1B,

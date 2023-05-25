@@ -25,8 +25,6 @@ void InterruptCode(void)
         ITimer->ReadEClock(&start.un.clockVal);
     }
 
-    //IExec->Disable();
-
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
     static unsigned counter = 0;
@@ -39,7 +37,6 @@ void InterruptCode(void)
     if (ctx.profile) {
         static unsigned addressCounter = 0;
 
-        // TODO: Disable() needed?
         uint32 *sp = task->tc_SPReg;
         uint32 address = sp ? *(sp + 1) : 0;
 
@@ -53,8 +50,6 @@ void InterruptCode(void)
             addressCounter = 0;
         }
     }
-
-    //IExec->Enable();
 
     if (++counter >= (ctx.samples * ctx.interval)) {
         static int flip = 0;
@@ -170,12 +165,12 @@ size_t GetTotalTaskCount(void)
     struct ExecBase* eb = (struct ExecBase *)SysBase;
     size_t tasks = 0;
 
-    IExec->Disable();
+    IExec->Forbid();
 
     tasks += GetTaskCount(&eb->TaskReady);
     tasks += GetTaskCount(&eb->TaskWait);
 
-    IExec->Enable();
+    IExec->Permit();
 
     return tasks;
 }
@@ -184,7 +179,7 @@ static BOOL TraverseLists(struct Task* task)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
 
-    IExec->Disable();
+    IExec->Forbid();
 
     BOOL found = Traverse(&eb->TaskReady, task);
 
@@ -192,7 +187,7 @@ static BOOL TraverseLists(struct Task* task)
         found = Traverse(&eb->TaskWait, task);
     }
 
-    IExec->Enable();
+    IExec->Permit();
 
     return found;
 }

@@ -144,6 +144,7 @@ static BOOL InitContext(const int argc, char* argv[])
         return FALSE;
     }
 
+    // TODO: too much memory spent here!
     ctx.sampleInfo = AllocateMemory(ctx.totalSamples * sizeof(SampleInfo));
 
     if (!ctx.sampleInfo) {
@@ -164,10 +165,9 @@ static BOOL InitContext(const int argc, char* argv[])
     ctx.back = &ctx.sampleData[0];
     ctx.front = NULL;
 
-    ctx.nameBuffer = AllocateMemory(4 * NAME_LEN);
-    ctx.cliNameBuffer = AllocateMemory(4 * NAME_LEN);
+    ctx.cliNameBuffer = AllocateMemory(NAME_LEN);
 
-    if (!ctx.nameBuffer || !ctx.cliNameBuffer) {
+    if (!ctx.cliNameBuffer) {
         return FALSE;
     }
 
@@ -205,10 +205,9 @@ static void CleanupContext()
 
     TimerQuit(&ctx.sampler);
 
-    FreeMemory(ctx.nameBuffer);
     FreeMemory(ctx.cliNameBuffer);
 
-    ctx.nameBuffer = ctx.cliNameBuffer = NULL;
+    ctx.cliNameBuffer = NULL;
 
     FreeMemory(ctx.sampleInfo);
     FreeMemory(ctx.sampleData[0].sampleBuffer);

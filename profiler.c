@@ -82,13 +82,13 @@ void InterruptCode(void)
     }
 }
 
-static size_t CopyProcessData(struct Task* task)
+static size_t CopyProcessData(struct Task* task, SampleInfo* info)
 {
     ctx.cliNameBuffer[0] = '\0';
 
     if (IS_PROCESS(task)) {
         struct Process* process = (struct Process *)task;
-        ctx.taskInfo.pid = process->pr_ProcessID;
+        info->pid = process->pr_ProcessID;
         struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(process->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
@@ -124,23 +124,23 @@ static float GetStackUsage(struct Task* task)
     return 100.0f * usedStack / totalStack;
 }
 
-static BOOL Traverse(struct List* list, struct Task* target)
+static BOOL Traverse(struct List* list, struct Task* target, SampleInfo* info)
 {
     for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
         struct Task* task = (struct Task *)node;
 
         if (task == target) {
-            const size_t cliNameLen = CopyProcessData(task);
+            const size_t cliNameLen = CopyProcessData(task, info);
             const size_t nameLen = strlen(node->ln_Name);
 
-            strlcpy(ctx.nameBuffer, node->ln_Name, NAME_LEN);
+            strlcpy(info->nameBuffer, node->ln_Name, NAME_LEN);
 
             if (cliNameLen > 0) {
-                strlcpy(ctx.nameBuffer + nameLen, ctx.cliNameBuffer, NAME_LEN - nameLen);
+                strlcpy(info->nameBuffer + nameLen, ctx.cliNameBuffer, NAME_LEN - nameLen);
             }
 
-            ctx.taskInfo.priority = node->ln_Pri;
-            ctx.taskInfo.stackUsage = GetStackUsage(task);
+            info->priority = node->ln_Pri;
+            info->stackUsage = GetStackUsage(task);
             return TRUE;
         }
     }
@@ -173,16 +173,16 @@ size_t GetTotalTaskCount(void)
     return tasks;
 }
 
-static BOOL TraverseLists(struct Task* task)
+static BOOL TraverseLists(struct Task* task, SampleInfo* info)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
 
     IExec->Forbid();
 
-    BOOL found = Traverse(&eb->TaskReady, task);
+    BOOL found = Traverse(&eb->TaskReady, task, info);
 
     if (!found) {
-        found = Traverse(&eb->TaskWait, task);
+        found = Traverse(&eb->TaskWait, task, info);
     }
 
     IExec->Permit();
@@ -194,32 +194,26 @@ static SampleInfo InitializeTaskData(struct Task* task)
 {
     SampleInfo info;
 
-    ctx.nameBuffer[0] = '\0';
-    ctx.taskInfo.stackUsage = 0.0f;
-    ctx.taskInfo.pid = 0;
-    ctx.taskInfo.priority = 0;
+    info.nameBuffer[0] = '\0';
+    info.stackUsage = 0.0f;
+    info.pid = 0;
+    info.priority = 0;
+    info.task = task;
+    info.count = 1;
 
-    const BOOL found = TraverseLists(task);
+    const BOOL found = TraverseLists(task, &info);
 
-    if (found) {
-        snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
-    } else {
+    if (!found) {
         if (task == ctx.mainTask) {
             snprintf(info.nameBuffer, NAME_LEN, "* Tequila (%s)", GetString(MSG_THIS_TASK));
-            ctx.taskInfo.stackUsage = GetStackUsage(task);
-            ctx.taskInfo.pid = ((struct Process *)task)->pr_ProcessID;
-            ctx.taskInfo.priority = ((struct Node *)task)->ln_Pri;
+            info.stackUsage = GetStackUsage(task);
+            info.pid = ((struct Process *)task)->pr_ProcessID;
+            info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             /* Could be some removed task */
             snprintf(info.nameBuffer, NAME_LEN, "%s %p", GetString(MSG_UNKNOWN_TASK), task);
         }
     }
-
-    info.task = task;
-    info.count = 1;
-    info.stackUsage = ctx.taskInfo.stackUsage;
-    info.pid = ctx.taskInfo.pid;
-    info.priority = ctx.taskInfo.priority;
 
     return info;
 }

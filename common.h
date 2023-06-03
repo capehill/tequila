@@ -10,12 +10,6 @@
 
 // TODO: documentation needed
 
-typedef struct TaskInfo {
-    float stackUsage;
-    uint32 pid;
-    BYTE priority;
-} TaskInfo;
-
 typedef struct Sample {
     struct Task* task;
 } Sample;
@@ -55,7 +49,6 @@ typedef struct Context {
     BYTE lastSignal;
     struct Task* mainTask;
     struct Interrupt* interrupt;
-    TaskInfo taskInfo;
 
     SampleInfo* sampleInfo;
 
@@ -63,7 +56,6 @@ typedef struct Context {
     SampleData* front;
     SampleData* back;
 
-    char* nameBuffer;
     char* cliNameBuffer;
 
     TimerContext sampler;

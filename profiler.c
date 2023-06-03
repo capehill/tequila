@@ -82,14 +82,14 @@ void InterruptCode(void)
     }
 }
 
-static size_t GetCliName(struct Task* task)
+static size_t CopyProcessData(struct Task* task)
 {
     ctx.cliNameBuffer[0] = '\0';
 
     if (IS_PROCESS(task)) {
         struct Process* process = (struct Process *)task;
         ctx.taskInfo.pid = process->pr_ProcessID;
-        struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
+        struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(process->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
@@ -130,7 +130,7 @@ static BOOL Traverse(struct List* list, struct Task* target)
         struct Task* task = (struct Task *)node;
 
         if (task == target) {
-            const size_t cliNameLen = GetCliName(task);
+            const size_t cliNameLen = CopyProcessData(task);
             const size_t nameLen = strlen(node->ln_Name);
 
             strlcpy(ctx.nameBuffer, node->ln_Name, NAME_LEN);

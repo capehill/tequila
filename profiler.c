@@ -14,8 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint64 longestInterrupt;
-
 void InterruptCode(void)
 {
     BOOL quit = FALSE;
@@ -74,8 +72,8 @@ void InterruptCode(void)
         ITimer->ReadEClock(&finish.un.clockVal);
 
         const uint64 duration = finish.un.ticks - start.un.ticks;
-        if (duration > longestInterrupt) {
-            longestInterrupt = duration;
+        if (duration > ctx.longestInterrupt) {
+            ctx.longestInterrupt = duration;
         }
     }
 
@@ -354,8 +352,16 @@ static void ShowResults(void)
     if (ctx.debugMode) {
         ITimer->ReadEClock(&finish.un.clockVal);
 
-        printf("\nDEBUG: data processing time %g us, longest interrupt %g us\n",
-            TicksToMicros(finish.un.ticks - start.un.ticks), TicksToMicros(longestInterrupt));
+        const uint64 duration = finish.un.ticks - start.un.ticks;
+
+        if (duration > ctx.longestDisplayUpdate) {
+            ctx.longestDisplayUpdate = duration;
+        }
+
+        printf("\nDisplay update %g us (longest %g us), longest interrupt %g us\n",
+               TicksToMicros(duration),
+               TicksToMicros(ctx.longestDisplayUpdate),
+               TicksToMicros(ctx.longestInterrupt));
     }
 }
 

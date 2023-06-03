@@ -753,7 +753,14 @@ static void HandleEvents(void)
             if (ctx.debugMode) {
                 const uint64 duration = finish.un.ticks - start.un.ticks;
 
-                printf("Display update %f ms\n", 0.001f * TicksToMicros(duration));
+                if (duration > ctx.longestDisplayUpdate) {
+                    ctx.longestDisplayUpdate = duration;
+                }
+
+                printf("Display update %g us (longest %g us), longest interrupt %g us\n",
+                       TicksToMicros(duration),
+                       TicksToMicros(ctx.longestDisplayUpdate),
+                       TicksToMicros(ctx.longestInterrupt));
             }
         }
     }

@@ -35,6 +35,9 @@ typedef struct SampleData {
 } SampleData;
 
 typedef struct Context {
+    uint64 longestInterrupt;
+    uint64 longestDisplayUpdate;
+
     ULONG period;
     ULONG samples;
     ULONG interval;

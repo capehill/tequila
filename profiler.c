@@ -14,84 +14,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint64 longestInterrupt;
-
-void InterruptCode(void)
-{
-    BOOL quit = FALSE;
-    struct MyClock start, finish;
-
-    if (ctx.debugMode) {
-        ITimer->ReadEClock(&start.un.clockVal);
-    }
-
-    struct ExecBase* sysbase = (struct ExecBase *)SysBase;
-    struct Task* task = sysbase->ThisTask;
-    static unsigned counter = 0;
-
-    ctx.back->sampleBuffer[counter].task = task;
-    if (sysbase->TDNestCnt > 0) {
-        ctx.back->forbidCount++;
-    }
-
-    if (ctx.profile) {
-        static unsigned addressCounter = 0;
-
-        uint32 *sp = task->tc_SPReg;
-        uint32 address = sp ? *(sp + 1) : 0;
-
-        if (sp > (uint32*)task->tc_SPUpper || sp < (uint32*)task->tc_SPLower) {
-            IExec->DebugPrintF("SP %p\n", sp);
-        }
-
-        ctx.addresses[addressCounter] = (ULONG *)address;
-
-        if (++addressCounter >= ctx.maxAddresses) {
-            addressCounter = 0;
-        }
-    }
-
-    if (++counter >= (ctx.samples * ctx.interval)) {
-        static int flip = 0;
-
-        counter = 0;
-        ctx.front = &ctx.sampleData[flip];
-        flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
-        ctx.back = &ctx.sampleData[flip];
-        //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
-        IExec->Signal(ctx.mainTask, 1L << ctx.timerSignal);
-    }
-
-    struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(ctx.sampler.port);
-
-    if (request && ctx.running) {
-        TimerStart(request, ctx.period);
-    } else {
-        quit = TRUE;
-    }
-
-    if (ctx.debugMode) {
-        ITimer->ReadEClock(&finish.un.clockVal);
-
-        const uint64 duration = finish.un.ticks - start.un.ticks;
-        if (duration > longestInterrupt) {
-            longestInterrupt = duration;
-        }
-    }
-
-    if (quit) {
-        IExec->Signal(ctx.mainTask, 1L << ctx.lastSignal);
-    }
-}
-
-static size_t GetCliName(struct Task* task)
+static size_t CopyProcessData(struct Task* task, SampleInfo* info)
 {
     ctx.cliNameBuffer[0] = '\0';
 
     if (IS_PROCESS(task)) {
         struct Process* process = (struct Process *)task;
-        ctx.taskInfo.pid = process->pr_ProcessID;
-        struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(((struct Process *)task)->pr_CLI);
+        info->pid = process->pr_ProcessID;
+        struct CommandLineInterface* cli = (struct CommandLineInterface *)BADDR(process->pr_CLI);
         if (cli) {
             const char* commandName = (const char *)BADDR(cli->cli_CommandName);
             if (commandName) {
@@ -126,28 +56,136 @@ static float GetStackUsage(struct Task* task)
     return 100.0f * usedStack / totalStack;
 }
 
-static BOOL Traverse(struct List* list, struct Task* target)
+static void CopyTaskData(struct Task* task, SampleInfo* info)
 {
-    for (struct Node* node = IExec->GetHead(list); node; node = IExec->GetSucc(node)) {
-        struct Task* task = (struct Task *)node;
+    struct Node* node = (struct Node *)task;
+    const size_t cliNameLen = CopyProcessData(task, info);
+    const size_t nameLen = strlen(node->ln_Name);
 
-        if (task == target) {
-            const size_t cliNameLen = GetCliName(task);
-            const size_t nameLen = strlen(node->ln_Name);
+    strlcpy(info->nameBuffer, node->ln_Name, NAME_LEN);
 
-            strlcpy(ctx.nameBuffer, node->ln_Name, NAME_LEN);
+    if (cliNameLen > 0) {
+        strlcpy(info->nameBuffer + nameLen, ctx.cliNameBuffer, NAME_LEN - nameLen);
+    }
 
-            if (cliNameLen > 0) {
-                strlcpy(ctx.nameBuffer + nameLen, ctx.cliNameBuffer, NAME_LEN - nameLen);
-            }
+    info->stackUsage = GetStackUsage(task);
+    info->priority = node->ln_Pri;
+}
 
-            ctx.taskInfo.priority = node->ln_Pri;
-            ctx.taskInfo.stackUsage = GetStackUsage(task);
-            return TRUE;
+static SampleInfo InitializeTaskData(struct Task* task)
+{
+    SampleInfo info;
+
+    info.nameBuffer[0] = '\0';
+    info.stackUsage = 0.0f;
+    info.pid = 0;
+    info.priority = 0;
+    info.task = task;
+    info.count = 1;
+
+    if (task == ctx.mainTask) {
+        // TODO: can we call GetString in interrupt?
+        snprintf(info.nameBuffer, NAME_LEN, "* Tequila" /*, GetString(MSG_THIS_TASK)*/);
+        info.stackUsage = GetStackUsage(task);
+        info.pid = ((struct Process *)task)->pr_ProcessID;
+        info.priority = ((struct Node *)task)->ln_Pri;
+    } else {
+        CopyTaskData(task, &info);
+    }
+
+    return info;
+}
+
+void InterruptCode(void)
+{
+    BOOL quit = FALSE;
+    struct MyClock start, finish;
+
+    if (ctx.debugMode) {
+        ITimer->ReadEClock(&start.un.clockVal);
+    }
+
+    struct ExecBase* sysbase = (struct ExecBase *)SysBase;
+    struct Task* task = sysbase->ThisTask;
+    static unsigned counter = 0;
+
+    BOOL found = FALSE;
+
+    uint32 i;
+
+    for (i = 0 ; i < ctx.back->uniqueTasks; i++) {
+        if (task == ctx.back->sampleInfoBuffer[i].task) {
+            ctx.back->sampleInfoBuffer[i].count++;
+            found = TRUE;
+            break;
         }
     }
 
-    return FALSE;
+    if (!found) {
+        if (i < MAX_TASKS) {
+            ctx.back->sampleInfoBuffer[i] = InitializeTaskData(task);
+            ctx.back->uniqueTasks++;
+        } else {
+            ctx.back->overflowTasks++;
+        }
+    }
+
+    if (sysbase->TDNestCnt > 0) {
+        ctx.back->forbidCount++;
+    }
+
+    if (ctx.profile) {
+        static unsigned addressCounter = 0;
+
+        uint32 *sp = task->tc_SPReg;
+        uint32 address = sp ? *(sp + 1) : 0;
+
+        if (sp > (uint32*)task->tc_SPUpper || sp < (uint32*)task->tc_SPLower) {
+            IExec->DebugPrintF("SP %p\n", sp);
+        }
+
+        ctx.addresses[addressCounter] = (ULONG *)address;
+
+        if (++addressCounter >= ctx.maxAddresses) {
+            addressCounter = 0;
+        }
+    }
+
+    if (++counter >= (ctx.samples * ctx.interval)) {
+        static int flip = 0;
+
+        counter = 0;
+        ctx.front = &ctx.sampleData[flip];
+        flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
+        ctx.back = &ctx.sampleData[flip];
+        ctx.back->forbidCount = 0;
+        ctx.back->uniqueTasks = 0;
+        ctx.back->overflowTasks = 0;
+
+        //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
+        IExec->Signal(ctx.mainTask, 1L << ctx.timerSignal);
+    }
+
+    struct TimeRequest *request = (struct TimeRequest *)IExec->GetMsg(ctx.sampler.port);
+
+    if (request && ctx.running) {
+        TimerStart(request, ctx.period);
+    } else {
+        quit = TRUE;
+    }
+
+    if (ctx.debugMode) {
+        ITimer->ReadEClock(&finish.un.clockVal);
+
+        const uint64 duration = finish.un.ticks - start.un.ticks;
+        if (duration > ctx.longestInterrupt) {
+            ctx.longestInterrupt = duration;
+        }
+    }
+
+    if (quit) {
+        IExec->Signal(ctx.mainTask, 1L << ctx.lastSignal);
+    }
 }
 
 static size_t GetTaskCount(struct List* list)
@@ -175,57 +213,6 @@ size_t GetTotalTaskCount(void)
     return tasks;
 }
 
-static BOOL TraverseLists(struct Task* task)
-{
-    struct ExecBase* eb = (struct ExecBase *)SysBase;
-
-    IExec->Forbid();
-
-    BOOL found = Traverse(&eb->TaskReady, task);
-
-    if (!found) {
-        found = Traverse(&eb->TaskWait, task);
-    }
-
-    IExec->Permit();
-
-    return found;
-}
-
-static SampleInfo InitializeTaskData(struct Task* task)
-{
-    SampleInfo info;
-
-    ctx.nameBuffer[0] = '\0';
-    ctx.taskInfo.stackUsage = 0.0f;
-    ctx.taskInfo.pid = 0;
-    ctx.taskInfo.priority = 0;
-
-    const BOOL found = TraverseLists(task);
-
-    if (found) {
-        snprintf(info.nameBuffer, NAME_LEN, ctx.nameBuffer);
-    } else {
-        if (task == ctx.mainTask) {
-            snprintf(info.nameBuffer, NAME_LEN, "* Tequila (%s)", GetString(MSG_THIS_TASK));
-            ctx.taskInfo.stackUsage = GetStackUsage(task);
-            ctx.taskInfo.pid = ((struct Process *)task)->pr_ProcessID;
-            ctx.taskInfo.priority = ((struct Node *)task)->ln_Pri;
-        } else {
-            /* Could be some removed task */
-            snprintf(info.nameBuffer, NAME_LEN, "%s %p", GetString(MSG_UNKNOWN_TASK), task);
-        }
-    }
-
-    info.task = task;
-    info.count = 1;
-    info.stackUsage = ctx.taskInfo.stackUsage;
-    info.pid = ctx.taskInfo.pid;
-    info.priority = ctx.taskInfo.priority;
-
-    return info;
-}
-
 static int Comparison(const void* first, const void* second)
 {
     const SampleInfo* a = first;
@@ -239,36 +226,14 @@ static int Comparison(const void* first, const void* second)
 
 size_t PrepareResults(void)
 {
-    size_t unique = 0;
-
-    for (size_t sample = 0; sample < ctx.interval * ctx.samples; sample++) {
-        struct Task* task = ctx.front->sampleBuffer[sample].task;
-
-        BOOL found = FALSE;
-
-        for (size_t i = 0; i < unique; i++) {
-            if (ctx.sampleInfo[i].task == task) {
-                ctx.sampleInfo[i].count++;
-                //IExec->DebugPrintF("count %u for task %p\n", results[i].count, task);
-                found = TRUE;
-                break;
-            }
-        }
-
-        if (!found) {
-            ctx.sampleInfo[unique] = InitializeTaskData(task);
-            unique++;
-        }
-    }
-
-    qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), Comparison);
+    qsort(ctx.front->sampleInfoBuffer, ctx.front->uniqueTasks, sizeof(SampleInfo), Comparison);
 
     const ULONG dispCount = ((struct ExecBase *)SysBase)->DispCount;
 
     ctx.taskSwitchesPerSecond = (dispCount - ctx.lastDispCount) / ctx.interval;
     ctx.lastDispCount = dispCount;
 
-    return unique;
+    return ctx.front->uniqueTasks;
 }
 
 float GetIdleCpu(const size_t count)
@@ -286,8 +251,8 @@ float GetIdleCpu(const size_t count)
 
     for (size_t i = 0; i < count; i++) {
         for (size_t n = 0; n < sizeof(knownIdleTaskNames) / sizeof(knownIdleTaskNames[0]); n++) {
-            if (strcmp(ctx.sampleInfo[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
-                idleCpu += 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+            if (strcmp(ctx.front->sampleInfoBuffer[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
+                idleCpu += 100.0f * ctx.front->sampleInfoBuffer[i].count / (ctx.samples * ctx.interval);
             }
         }
     }
@@ -297,9 +262,7 @@ float GetIdleCpu(const size_t count)
 
 float GetForbidCpu(void)
 {
-    const float forbid = 100.0f * ctx.front->forbidCount / (ctx.samples * ctx.interval);
-    ctx.front->forbidCount = 0;
-    return forbid;
+    return 100.0f * ctx.front->forbidCount / (ctx.samples * ctx.interval);
 }
 
 static void ShowResults(void)
@@ -333,29 +296,36 @@ static void ShowResults(void)
            GetString(MSG_COLUMN_PID));
 
     for (size_t i = 0; i < unique; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+        const float cpu = 100.0f * ctx.front->sampleInfoBuffer[i].count / (ctx.samples * ctx.interval);
 
         static char pidBuffer[16];
 
-        if (ctx.sampleInfo[i].pid > 0) {
-            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        if (ctx.front->sampleInfoBuffer[i].pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.front->sampleInfoBuffer[i].pid);
         } else {
             snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
         }
 
         printf("%-40s %6.1f %10d %10.1f %6s\n",
-               ctx.sampleInfo[i].nameBuffer,
+               ctx.front->sampleInfoBuffer[i].nameBuffer,
                cpu,
-               ctx.sampleInfo[i].priority,
-               ctx.sampleInfo[i].stackUsage,
+               ctx.front->sampleInfoBuffer[i].priority,
+               ctx.front->sampleInfoBuffer[i].stackUsage,
                pidBuffer);
     }
 
     if (ctx.debugMode) {
         ITimer->ReadEClock(&finish.un.clockVal);
 
-        printf("\nDEBUG: data processing time %g us, longest interrupt %g us\n",
-            TicksToMicros(finish.un.ticks - start.un.ticks), TicksToMicros(longestInterrupt));
+        const uint64 ticks = finish.un.ticks - start.un.ticks;
+        if (ticks > ctx.longestDisplayUpdate) {
+            ctx.longestDisplayUpdate = ticks;
+        }
+
+        printf("\nDisplay update %g us (longest %g us), longest interrupt %g us\n",
+            TicksToMicros(ticks),
+            TicksToMicros(ctx.longestDisplayUpdate),
+            TicksToMicros(ctx.longestInterrupt));
     }
 }
 

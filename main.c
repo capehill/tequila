@@ -134,21 +134,6 @@ static BOOL InitContext(const int argc, char* argv[])
         return FALSE;
     }
 
-    ctx.sampleData[0].sampleBuffer = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
-    ctx.sampleData[1].sampleBuffer = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
-
-    if (!ctx.sampleData[0].sampleBuffer || !ctx.sampleData[1].sampleBuffer) {
-        puts("Failed to allocate sample buffers");
-        return FALSE;
-    }
-
-    ctx.sampleInfo = AllocateMemory(ctx.interval * ctx.samples * sizeof(SampleInfo));
-
-    if (!ctx.sampleInfo) {
-        puts("Failed to allocate sample info buffer");
-        return FALSE;
-    }
-
     if (ctx.profile) {
         ctx.maxAddresses = 30 * ctx.samples;
         ctx.addresses = AllocateMemory(ctx.maxAddresses * sizeof(ULONG *));
@@ -162,10 +147,9 @@ static BOOL InitContext(const int argc, char* argv[])
     ctx.back = &ctx.sampleData[0];
     ctx.front = NULL;
 
-    ctx.nameBuffer = AllocateMemory(4 * NAME_LEN);
-    ctx.cliNameBuffer = AllocateMemory(4 * NAME_LEN);
+    ctx.cliNameBuffer = AllocateMemory(NAME_LEN);
 
-    if (!ctx.nameBuffer || !ctx.cliNameBuffer) {
+    if (!ctx.cliNameBuffer) {
         return FALSE;
     }
 
@@ -203,17 +187,9 @@ static void CleanupContext()
 
     TimerQuit(&ctx.sampler);
 
-    FreeMemory(ctx.nameBuffer);
     FreeMemory(ctx.cliNameBuffer);
 
-    ctx.nameBuffer = ctx.cliNameBuffer = NULL;
-
-    FreeMemory(ctx.sampleInfo);
-    FreeMemory(ctx.sampleData[0].sampleBuffer);
-    FreeMemory(ctx.sampleData[1].sampleBuffer);
-
-    ctx.sampleInfo = NULL;
-    ctx.sampleData[0].sampleBuffer = ctx.sampleData[1].sampleBuffer = NULL;
+    ctx.cliNameBuffer = NULL;
 
     if (ctx.profile) {
         FreeMemory(ctx.addresses);

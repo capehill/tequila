@@ -535,11 +535,12 @@ static void UpdateBitMap(void)
 
         /* Dynamic content */
         for (size_t i = 0; i < uniqueTasks; i++) {
-            const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+            const SampleInfo* si = &ctx.front->sampleInfoBuffer[i];
+            const float cpu = 100.0f * si->count / (ctx.samples * ctx.interval);
 
             yOffset += cr.rp.TxHeight;
 
-            size_t len = snprintf(buffer, sizeof(buffer), "%s", ctx.sampleInfo[i].nameBuffer);
+            size_t len = snprintf(buffer, sizeof(buffer), "%s", si->nameBuffer);
 
             IGraphics->Move(&cr.rp, xOffset[0], yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
@@ -550,20 +551,20 @@ static void UpdateBitMap(void)
             IGraphics->Move(&cr.rp, xOffset[1] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            len = snprintf(buffer, sizeof(buffer), "%d", ctx.sampleInfo[i].priority);
+            len = snprintf(buffer, sizeof(buffer), "%d", si->priority);
             textLength = IGraphics->TextLength(&cr.rp, buffer, len);
 
             IGraphics->Move(&cr.rp, xOffset[2] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            len = snprintf(buffer, sizeof(buffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
+            len = snprintf(buffer, sizeof(buffer), "%3.1f", si->stackUsage);
             textLength = IGraphics->TextLength(&cr.rp, buffer, len);
 
             IGraphics->Move(&cr.rp, xOffset[3] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            if (ctx.sampleInfo[i].pid > 0) {
-                len = snprintf(buffer, sizeof(buffer), "%lu", ctx.sampleInfo[i].pid);
+            if (si->pid > 0) {
+                len = snprintf(buffer, sizeof(buffer), "%lu", si->pid);
             } else {
                 len = snprintf(buffer, sizeof(buffer), "(task)");
             }
@@ -587,16 +588,18 @@ static void UpdateListBrowser(void)
     RemoveLabelNodes();
 
     for (size_t i = 0; i < uniqueTasks; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+        const SampleInfo* si = &ctx.front->sampleInfoBuffer[i];
+
+        const float cpu = 100.0f * si->count / (ctx.samples * ctx.interval);
         static char cpuBuffer[10];
         static char stackBuffer[10];
         static char pidBuffer[16];
-        const int32 priorityBuffer = ctx.sampleInfo[i].priority;
+        const int32 priorityBuffer = si->priority;
 
         snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.1f", cpu);
-        snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
-        if (ctx.sampleInfo[i].pid > 0) {
-            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", si->stackUsage);
+        if (si->pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", si->pid);
         } else {
             snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
         }
@@ -604,7 +607,7 @@ static void UpdateListBrowser(void)
         IListBrowser->SetListBrowserNodeAttrs(nodes[i],
                                               LBNA_Column, 0,
                                                 LBNCA_CopyText, TRUE,
-                                                LBNCA_Text, ctx.sampleInfo[i].nameBuffer,
+                                                LBNCA_Text, si->nameBuffer,
                                               LBNA_Column, 1,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, cpuBuffer,
@@ -753,7 +756,14 @@ static void HandleEvents(void)
             if (ctx.debugMode) {
                 const uint64 duration = finish.un.ticks - start.un.ticks;
 
-                printf("Display update %f ms\n", 0.001f * TicksToMicros(duration));
+                if (duration > ctx.longestDisplayUpdate) {
+                    ctx.longestDisplayUpdate = duration;
+                }
+
+                printf("Display update %g us (longest %g us, longest interrupt %g us)\n",
+                       TicksToMicros(duration),
+                       TicksToMicros(ctx.longestDisplayUpdate),
+                       TicksToMicros(ctx.longestInterrupt));
             }
         }
     }

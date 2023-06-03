@@ -7,18 +7,9 @@
 #include <stddef.h>
 
 #define NAME_LEN 256
+#define MAX_TASKS 100
 
 // TODO: documentation needed
-
-typedef struct TaskInfo {
-    float stackUsage;
-    uint32 pid;
-    BYTE priority;
-} TaskInfo;
-
-typedef struct Sample {
-    struct Task* task;
-} Sample;
 
 typedef struct SampleInfo {
     char nameBuffer[NAME_LEN];
@@ -30,11 +21,16 @@ typedef struct SampleInfo {
 } SampleInfo;
 
 typedef struct SampleData {
-    Sample* sampleBuffer;
+    SampleInfo sampleInfoBuffer[MAX_TASKS];
     uint32 forbidCount;
+    uint32 uniqueTasks;
+    uint32 overflowTasks;
 } SampleData;
 
 typedef struct Context {
+    uint64 longestInterrupt;
+    uint64 longestDisplayUpdate;
+
     ULONG period;
     ULONG samples;
     ULONG interval;
@@ -51,15 +47,11 @@ typedef struct Context {
     BYTE lastSignal;
     struct Task* mainTask;
     struct Interrupt* interrupt;
-    TaskInfo taskInfo;
-
-    SampleInfo* sampleInfo;
 
     SampleData sampleData[2];
     SampleData* front;
     SampleData* back;
 
-    char* nameBuffer;
     char* cliNameBuffer;
 
     TimerContext sampler;

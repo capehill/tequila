@@ -123,6 +123,8 @@ static BOOL InitContext(const int argc, char* argv[])
 
     ValidateArgs();
 
+    ctx.totalSamples = ctx.interval * ctx.samples;
+
     ctx.interrupt = (struct Interrupt *) IExec->AllocSysObjectTags(ASOT_INTERRUPT,
         ASOINTR_Code, InterruptCode,
         ASOINTR_Name, "Tequila timer interrupt",
@@ -134,15 +136,15 @@ static BOOL InitContext(const int argc, char* argv[])
         return FALSE;
     }
 
-    ctx.sampleData[0].sampleBuffer = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
-    ctx.sampleData[1].sampleBuffer = AllocateMemory(ctx.interval * ctx.samples * sizeof(Sample));
+    ctx.sampleData[0].sampleBuffer = AllocateMemory(ctx.totalSamples * sizeof(Sample));
+    ctx.sampleData[1].sampleBuffer = AllocateMemory(ctx.totalSamples * sizeof(Sample));
 
     if (!ctx.sampleData[0].sampleBuffer || !ctx.sampleData[1].sampleBuffer) {
         puts("Failed to allocate sample buffers");
         return FALSE;
     }
 
-    ctx.sampleInfo = AllocateMemory(ctx.interval * ctx.samples * sizeof(SampleInfo));
+    ctx.sampleInfo = AllocateMemory(ctx.totalSamples * sizeof(SampleInfo));
 
     if (!ctx.sampleInfo) {
         puts("Failed to allocate sample info buffer");

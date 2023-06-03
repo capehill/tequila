@@ -51,7 +51,7 @@ void InterruptCode(void)
         }
     }
 
-    if (++counter >= (ctx.samples * ctx.interval)) {
+    if (++counter >= ctx.totalSamples) {
         static int flip = 0;
 
         counter = 0;
@@ -241,7 +241,7 @@ size_t PrepareResults(void)
 {
     size_t unique = 0;
 
-    for (size_t sample = 0; sample < ctx.interval * ctx.samples; sample++) {
+    for (size_t sample = 0; sample < ctx.totalSamples; sample++) {
         struct Task* task = ctx.front->sampleBuffer[sample].task;
 
         BOOL found = FALSE;
@@ -287,7 +287,7 @@ float GetIdleCpu(const size_t count)
     for (size_t i = 0; i < count; i++) {
         for (size_t n = 0; n < sizeof(knownIdleTaskNames) / sizeof(knownIdleTaskNames[0]); n++) {
             if (strcmp(ctx.sampleInfo[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
-                idleCpu += 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+                idleCpu += 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
             }
         }
     }
@@ -297,7 +297,7 @@ float GetIdleCpu(const size_t count)
 
 float GetForbidCpu(void)
 {
-    const float forbid = 100.0f * ctx.front->forbidCount / (ctx.samples * ctx.interval);
+    const float forbid = 100.0f * ctx.front->forbidCount / ctx.totalSamples;
     ctx.front->forbidCount = 0;
     return forbid;
 }
@@ -333,7 +333,7 @@ static void ShowResults(void)
            GetString(MSG_COLUMN_PID));
 
     for (size_t i = 0; i < unique; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+        const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
 
         static char pidBuffer[16];
 

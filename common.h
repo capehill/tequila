@@ -38,6 +38,7 @@ typedef struct Context {
     ULONG period;
     ULONG samples;
     ULONG interval;
+    ULONG totalSamples; // interval * samples
     ULONG taskSwitchesPerSecond;
     ULONG lastDispCount;
 

@@ -535,7 +535,7 @@ static void UpdateBitMap(void)
 
         /* Dynamic content */
         for (size_t i = 0; i < uniqueTasks; i++) {
-            const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+            const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
 
             yOffset += cr.rp.TxHeight;
 
@@ -587,7 +587,7 @@ static void UpdateListBrowser(void)
     RemoveLabelNodes();
 
     for (size_t i = 0; i < uniqueTasks; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / (ctx.samples * ctx.interval);
+        const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
         static char cpuBuffer[10];
         static char stackBuffer[10];
         static char pidBuffer[16];

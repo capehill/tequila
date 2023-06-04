@@ -56,6 +56,9 @@ void InterruptCode(void)
         ctx.front = &ctx.sampleData[flip];
         flip ^= 1; // TODO: if main process doesn't get CPU, there might be glitches
         ctx.back = &ctx.sampleData[flip];
+        ctx.back->uniqueTasks = 0;
+        ctx.back->forbidCount = 0;
+
         //IExec->DebugPrintF("Signal %d -> main\n", mainSig);
         IExec->Signal(ctx.mainTask, 1L << ctx.timerSignal);
     }
@@ -229,16 +232,14 @@ static int Comparison(const void* first, const void* second)
     return 0;
 }
 
-size_t PrepareResults(void)
+void PrepareResults(void)
 {
-    size_t unique = 0;
-
     for (size_t sample = 0; sample < ctx.totalSamples; sample++) {
         struct Task* task = ctx.front->sampleBuffer[sample].task;
 
         BOOL found = FALSE;
 
-        for (size_t i = 0; i < unique; i++) {
+        for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
             if (ctx.sampleInfo[i].task == task) {
                 ctx.sampleInfo[i].count++;
                 //IExec->DebugPrintF("count %u for task %p\n", results[i].count, task);
@@ -247,23 +248,20 @@ size_t PrepareResults(void)
             }
         }
 
-        if (!found) {
-            ctx.sampleInfo[unique] = InitializeTaskData(task);
-            unique++;
+        if (!found && ctx.front->uniqueTasks < MAX_TASKS) {
+            ctx.sampleInfo[ctx.front->uniqueTasks++] = InitializeTaskData(task);
         }
     }
 
-    qsort(ctx.sampleInfo, unique, sizeof(SampleInfo), Comparison);
+    qsort(ctx.sampleInfo, ctx.front->uniqueTasks, sizeof(SampleInfo), Comparison);
 
     const ULONG dispCount = ((struct ExecBase *)SysBase)->DispCount;
 
     ctx.taskSwitchesPerSecond = (dispCount - ctx.lastDispCount) / ctx.interval;
     ctx.lastDispCount = dispCount;
-
-    return unique;
 }
 
-float GetIdleCpu(const size_t count)
+float GetIdleCpu(void)
 {
     float idleCpu = 0.0f;
 
@@ -276,7 +274,7 @@ float GetIdleCpu(const size_t count)
         "CPUInfo.CPUTask", // CPUInfo docky
     };
 
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
         for (size_t n = 0; n < sizeof(knownIdleTaskNames) / sizeof(knownIdleTaskNames[0]); n++) {
             if (strcmp(ctx.sampleInfo[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
                 idleCpu += 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
@@ -289,9 +287,7 @@ float GetIdleCpu(const size_t count)
 
 float GetForbidCpu(void)
 {
-    const float forbid = 100.0f * ctx.front->forbidCount / ctx.totalSamples;
-    ctx.front->forbidCount = 0;
-    return forbid;
+    return 100.0f * ctx.front->forbidCount / ctx.totalSamples;
 }
 
 static void ShowResults(void)
@@ -302,12 +298,12 @@ static void ShowResults(void)
         ITimer->ReadEClock(&start.un.clockVal);
     }
 
-    const size_t unique = PrepareResults();
+    PrepareResults();
 
     printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %3.1f%%. %s %u. %s %lu. %s %s\n",
            0x1B,
            GetString(MSG_IDLE),
-           GetIdleCpu(unique),
+           GetIdleCpu(),
            GetString(MSG_FORBID),
            GetForbidCpu(),
            GetString(MSG_TASKS),
@@ -324,22 +320,23 @@ static void ShowResults(void)
            GetString(MSG_COLUMN_STACK),
            GetString(MSG_COLUMN_PID));
 
-    for (size_t i = 0; i < unique; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
+    for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
+        SampleInfo* si = &ctx.sampleInfo[i];
+        const float cpu = 100.0f * si->count / ctx.totalSamples;
 
         static char pidBuffer[16];
 
-        if (ctx.sampleInfo[i].pid > 0) {
-            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        if (si->pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", si->pid);
         } else {
             snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
         }
 
         printf("%-40s %6.1f %10d %10.1f %6s\n",
-               ctx.sampleInfo[i].nameBuffer,
+               si->nameBuffer,
                cpu,
-               ctx.sampleInfo[i].priority,
-               ctx.sampleInfo[i].stackUsage,
+               si->priority,
+               si->stackUsage,
                pidBuffer);
     }
 

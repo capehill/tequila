@@ -144,14 +144,6 @@ static BOOL InitContext(const int argc, char* argv[])
         return FALSE;
     }
 
-    // TODO: too much memory spent here!
-    ctx.sampleInfo = AllocateMemory(ctx.totalSamples * sizeof(SampleInfo));
-
-    if (!ctx.sampleInfo) {
-        puts("Failed to allocate sample info buffer");
-        return FALSE;
-    }
-
     if (ctx.profile) {
         ctx.maxAddresses = 30 * ctx.samples;
         ctx.addresses = AllocateMemory(ctx.maxAddresses * sizeof(ULONG *));
@@ -209,11 +201,9 @@ static void CleanupContext()
 
     ctx.cliNameBuffer = NULL;
 
-    FreeMemory(ctx.sampleInfo);
     FreeMemory(ctx.sampleData[0].sampleBuffer);
     FreeMemory(ctx.sampleData[1].sampleBuffer);
 
-    ctx.sampleInfo = NULL;
     ctx.sampleData[0].sampleBuffer = ctx.sampleData[1].sampleBuffer = NULL;
 
     if (ctx.profile) {

@@ -78,13 +78,11 @@ static Class* LayoutClass;
 static Class* ButtonClass;
 static Class* SpaceClass;
 
-#define MAX_NODES 100
+#define MAX_NODES MAX_TASKS
 
 static struct ColumnInfo* columnInfo;
 static struct List labelList;
 static struct Node* nodes[MAX_NODES];
-
-static size_t uniqueTasks; // number of unique tasks (per round)
 
 static void RemoveLabelNodes(void)
 {
@@ -534,12 +532,13 @@ static void UpdateBitMap(void)
         }
 
         /* Dynamic content */
-        for (size_t i = 0; i < uniqueTasks; i++) {
-            const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
+        for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
+            SampleInfo* si = &ctx.sampleInfo[i];
+            const float cpu = 100.0f * si->count / ctx.totalSamples;
 
             yOffset += cr.rp.TxHeight;
 
-            size_t len = snprintf(buffer, sizeof(buffer), "%s", ctx.sampleInfo[i].nameBuffer);
+            size_t len = snprintf(buffer, sizeof(buffer), "%s", si->nameBuffer);
 
             IGraphics->Move(&cr.rp, xOffset[0], yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
@@ -550,20 +549,20 @@ static void UpdateBitMap(void)
             IGraphics->Move(&cr.rp, xOffset[1] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            len = snprintf(buffer, sizeof(buffer), "%d", ctx.sampleInfo[i].priority);
+            len = snprintf(buffer, sizeof(buffer), "%d", si->priority);
             textLength = IGraphics->TextLength(&cr.rp, buffer, len);
 
             IGraphics->Move(&cr.rp, xOffset[2] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            len = snprintf(buffer, sizeof(buffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
+            len = snprintf(buffer, sizeof(buffer), "%3.1f", si->stackUsage);
             textLength = IGraphics->TextLength(&cr.rp, buffer, len);
 
             IGraphics->Move(&cr.rp, xOffset[3] - textLength, yOffset);
             IGraphics->Text(&cr.rp, buffer, len);
 
-            if (ctx.sampleInfo[i].pid > 0) {
-                len = snprintf(buffer, sizeof(buffer), "%lu", ctx.sampleInfo[i].pid);
+            if (si->pid > 0) {
+                len = snprintf(buffer, sizeof(buffer), "%lu", si->pid);
             } else {
                 len = snprintf(buffer, sizeof(buffer), "(task)");
             }
@@ -586,17 +585,18 @@ static void UpdateListBrowser(void)
 
     RemoveLabelNodes();
 
-    for (size_t i = 0; i < uniqueTasks; i++) {
-        const float cpu = 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
+    for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
+        SampleInfo* si = &ctx.sampleInfo[i];
+        const float cpu = 100.0f * si->count / ctx.totalSamples;
         static char cpuBuffer[10];
         static char stackBuffer[10];
         static char pidBuffer[16];
-        const int32 priorityBuffer = ctx.sampleInfo[i].priority;
+        const int32 priorityBuffer = si->priority;
 
         snprintf(cpuBuffer, sizeof(cpuBuffer), "%3.1f", cpu);
-        snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", ctx.sampleInfo[i].stackUsage);
-        if (ctx.sampleInfo[i].pid > 0) {
-            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", ctx.sampleInfo[i].pid);
+        snprintf(stackBuffer, sizeof(stackBuffer), "%3.1f", si->stackUsage);
+        if (si->pid > 0) {
+            snprintf(pidBuffer, sizeof(pidBuffer), "%lu", si->pid);
         } else {
             snprintf(pidBuffer, sizeof(pidBuffer), "(task)");
         }
@@ -604,7 +604,7 @@ static void UpdateListBrowser(void)
         IListBrowser->SetListBrowserNodeAttrs(nodes[i],
                                               LBNA_Column, 0,
                                                 LBNCA_CopyText, TRUE,
-                                                LBNCA_Text, ctx.sampleInfo[i].nameBuffer,
+                                                LBNCA_Text, si->nameBuffer,
                                               LBNA_Column, 1,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, cpuBuffer,
@@ -629,10 +629,7 @@ static void UpdateListBrowser(void)
 
 static void UpdateDisplay(void)
 {
-    const size_t unique = PrepareResults();
-    uniqueTasks = unique < MAX_NODES ? unique : MAX_NODES;
-
-    //const float usage = getLoad(unique);
+    PrepareResults();
 
     static char idleString[16];
     static char forbidString[16];
@@ -640,7 +637,7 @@ static void UpdateDisplay(void)
     static char taskSwitchesString[32];
     static char uptimeString[64];
 
-    snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu(unique));
+    snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu());
     snprintf(forbidString, sizeof(forbidString), "%s %3.1f%%", GetString(MSG_FORBID), GetForbidCpu());
     snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
     snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), ctx.taskSwitchesPerSecond);

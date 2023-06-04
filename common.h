@@ -6,6 +6,7 @@
 #include <exec/types.h>
 #include <stddef.h>
 
+#define MAX_TASKS 100
 #define NAME_LEN 256
 
 // TODO: documentation needed
@@ -25,6 +26,7 @@ typedef struct SampleInfo {
 
 typedef struct SampleData {
     Sample* sampleBuffer;
+    uint32 uniqueTasks;
     uint32 forbidCount;
 } SampleData;
 
@@ -50,7 +52,7 @@ typedef struct Context {
     struct Task* mainTask;
     struct Interrupt* interrupt;
 
-    SampleInfo* sampleInfo;
+    SampleInfo sampleInfo[MAX_TASKS];
 
     SampleData sampleData[2];
     SampleData* front;

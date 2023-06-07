@@ -499,7 +499,7 @@ static void UpdateBitMap(void)
                                  0.9f * box.Width,
                                  box.Width - 2 };
 
-        static char buffer[64];
+        static char buffer[NAME_LEN];
 
         int yOffset = cr.rp.TxHeight;
 

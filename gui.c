@@ -341,6 +341,7 @@ static Object* CreateTaskDisplay(void)
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_BevelStyle, BVS_GROUP,
                 LAYOUT_AddChild, objects[OID_Space] = IIntuition->NewObject(SpaceClass, NULL,
+                    GA_HintInfo, GetString(MSG_TASK_DISPLAY_HINT),
                     GA_ID, GID_Space,
                     SPACE_Transparent, TRUE,
                     SPACE_RenderHook, renderHook,

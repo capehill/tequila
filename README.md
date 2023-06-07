@@ -5,7 +5,7 @@ Tequila is a simple CPU profiler which samples current running tasks.
 
 ## Command-line parameters / icon tooltypes
 
-SAMPLES [99, 10000] - how often running task is sampled (Hz). Default is 999.
+SAMPLES [99, 10000] - how often running task is sampled (Hz). Default is 5000.
 
 INTERVAL [1, 5] - display update interval (seconds). Default is 1.
 
@@ -15,7 +15,8 @@ PROFILE - try to collect symbol data. Note: it doesn't work properly yet.
 
 GUI - start in window mode.
 
-CUSTOMRENDERING - display task list without using listbrowser.gadget.
+CUSTOMRENDERING - display task list without using listbrowser.gadget. It's faster
+                  than listbrowser.gadget, so Tequila uses less CPU in this mode.
 
 
 ## Keyboard shortcuts
@@ -56,7 +57,12 @@ Profyler: http://os4depot.net/?function=showfile&file=development/debug/profyler
 - Add custom rendering.
 - Add locale support.
 - Display task switches / second.
-- Fix issue with occasional unfreed signals at exit.
+- Display Forbid percentage.
+- Display "(task)" instead of PID 0 for pure tasks.
+- Fix occasional issue with unfreed signals at exit.
+- Reduce heap memory usage.
+- Optimize string handling.
+- Use Forbid() instead of Disable() when reading task lists.
 
 1.0
 - First public release.

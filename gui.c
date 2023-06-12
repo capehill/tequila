@@ -81,12 +81,12 @@ static Class* SpaceClass;
 #define MAX_NODES MAX_TASKS
 
 static struct ColumnInfo* columnInfo;
-static struct List labelList;
+static struct List* labelList;
 static struct Node* nodes[MAX_NODES];
 
 static void RemoveLabelNodes(void)
 {
-    while (IExec->RemHead(&labelList) != NULL) {
+    while (IExec->RemHead(labelList) != NULL) {
         //
     }
 }
@@ -288,6 +288,13 @@ static BOOL InitCustomRendering(void)
 
 static BOOL InitListBrowserData(void)
 {
+    labelList = IExec->AllocSysObject(ASOT_LIST, TAG_DONE);
+
+    if (!labelList) {
+        puts("Failed to allocate label list");
+        return FALSE;
+    }
+
     columnInfo = IListBrowser->AllocLBColumnInfo(5,
                                                  LBCIA_Column, 0,
                                                  LBCIA_Title, GetString(MSG_COLUMN_TASK),
@@ -319,7 +326,6 @@ static BOOL InitListBrowserData(void)
         }
     }
 
-    IExec->NewList(&labelList);
     return TRUE;
 }
 
@@ -358,7 +364,7 @@ static Object* CreateTaskDisplay(void)
             GA_ID, GID_ListBrowser,
             LISTBROWSER_ColumnInfo, columnInfo,
             LISTBROWSER_ColumnTitles, TRUE,
-            LISTBROWSER_Labels, &labelList,
+            LISTBROWSER_Labels, labelList,
             LISTBROWSER_Striping, TRUE,
             TAG_DONE);
 
@@ -620,7 +626,7 @@ static void UpdateListBrowser(void)
                                                 LBNCA_Text, pidBuffer,
                                               TAG_DONE);
 
-        IExec->AddTail(&labelList, nodes[i]);
+        IExec->AddTail(labelList, nodes[i]);
     }
 
     IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_ListBrowser], window, NULL,
@@ -801,6 +807,8 @@ void GuiLoop(void)
             }
 
             IListBrowser->FreeLBColumnInfo(columnInfo);
+
+            IExec->FreeSysObject(ASOT_LIST, labelList);
         }
     }
 

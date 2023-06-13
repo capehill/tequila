@@ -626,7 +626,7 @@ static void UpdateListBrowser(void)
     }
 
     IIntuition->RefreshSetGadgetAttrs((struct Gadget *)objects[OID_ListBrowser], window, NULL,
-                                      LISTBROWSER_Labels, labelList,
+                                      LISTBROWSER_Labels, &labelList,
                                       TAG_DONE);
 }
 

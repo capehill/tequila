@@ -56,10 +56,12 @@ Profyler: http://os4depot.net/?function=showfile&file=development/debug/profyler
 1.1
 - Add custom rendering.
 - Add locale support.
+- Add Finnish and Italian catalogs.
 - Display task switches / second.
 - Display Forbid percentage.
 - Display "(task)" instead of PID 0 for pure tasks.
 - Fix occasional issue with unfreed signals at exit.
+- Fix occasional freeze during listbrowser.gadget update.
 - Reduce heap memory usage.
 - Optimize string handling.
 - Use Forbid() instead of Disable() when reading task lists.

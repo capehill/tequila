@@ -47,7 +47,8 @@ static void ParseArgs(void)
         }
 
         ctx.debugMode = params.debug;
-        ctx.profile = params.profile;
+        ctx.profiling.enabled = params.profile;
+        //ctx.profiling.task = IExec->FindTask((char *)params.profile); // TODO
         ctx.gui = params.gui;
         ctx.customRendering = params.customRendering;
 
@@ -96,7 +97,10 @@ static void ReadToolTypes(const char* const name)
             ctx.samples = ToolTypeToNumber(diskObject, "SAMPLES");
             ctx.interval = ToolTypeToNumber(diskObject, "INTERVAL");
             ctx.debugMode = IIcon->FindToolType(diskObject->do_ToolTypes, "DEBUG") != NULL;
-            ctx.profile = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
+            ctx.profiling.enabled = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
+            //if (ctx.profiling.enabled) {
+            //    ctx.profiling.task = IExec->FindTask(IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE"));
+            //}
             ctx.gui = IIcon->FindToolType(diskObject->do_ToolTypes, "GUI") != NULL;
             ctx.customRendering = IIcon->FindToolType(diskObject->do_ToolTypes, "CUSTOMRENDERING") != NULL;
             IIcon->FreeDiskObject(diskObject);
@@ -114,6 +118,7 @@ static BOOL InitContext(const int argc, char* argv[])
     if (argc > 0) {
         ParseArgs();
         ReadToolTypes(argv[0]);
+        //printf("Profile task %p\n", ctx.profiling.task);
     } else {
         struct WBStartup* startup = (struct WBStartup *)argv;
         struct WBArg* args = startup->sm_ArgList;
@@ -144,11 +149,11 @@ static BOOL InitContext(const int argc, char* argv[])
         return FALSE;
     }
 
-    if (ctx.profile) {
-        ctx.maxAddresses = 30 * ctx.samples;
-        ctx.addresses = AllocateMemory(ctx.maxAddresses * sizeof(ULONG *));
+    if (ctx.profiling.enabled) {
+        ctx.profiling.stackTraces = 30 * ctx.samples;
+        ctx.profiling.addresses = AllocateMemory(ctx.profiling.stackTraces * sizeof(ULONG *) * MAX_STACK_DEPTH);
 
-        if (!ctx.addresses) {
+        if (!ctx.profiling.addresses) {
             puts("Failed to allocate address buffer");
             return FALSE;
         }
@@ -180,6 +185,13 @@ static BOOL InitContext(const int argc, char* argv[])
 
     ctx.lastDispCount = ((struct ExecBase *)SysBase)->DispCount;
 
+    ctx.symbolLookupWorkaroundNeeded = (SysBase->lib_Version <= 54) &&
+                                       (SysBase->lib_Revision <= 46);
+
+    if (ctx.debugMode && ctx.symbolLookupWorkaroundNeeded) {
+        printf("exec.library version %d.%d: symbol lookup W/A activated\n", SysBase->lib_Version, SysBase->lib_Revision);
+    }
+
     return TRUE;
 }
 
@@ -206,9 +218,9 @@ static void CleanupContext()
 
     ctx.sampleData[0].sampleBuffer = ctx.sampleData[1].sampleBuffer = NULL;
 
-    if (ctx.profile) {
-        FreeMemory(ctx.addresses);
-        ctx.addresses = NULL;
+    if (ctx.profiling.enabled) {
+        FreeMemory(ctx.profiling.addresses);
+        ctx.profiling.addresses = NULL;
     }
 
     if (ctx.interrupt) {
@@ -236,7 +248,7 @@ int main(int argc, char* argv[])
             puts("Last signal received");
         }
 
-        if (ctx.profile) {
+        if (ctx.profiling.enabled) {
             ShowSymbols();
         }
     }

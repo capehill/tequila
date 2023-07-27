@@ -14,6 +14,46 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct StackFrame {
+    struct StackFrame* backChain;
+    uint32* linkRegister;
+};
+
+typedef struct StackFrame StackFrame;
+
+static void GetStackTrace(struct Task* task)
+{
+    static size_t stackTraceCounter = 0;
+
+    const StackFrame* frame = task->tc_SPReg;
+    const StackFrame* const lower = task->tc_SPLower;
+    const StackFrame* const upper = task->tc_SPUpper;
+
+    const size_t offset = stackTraceCounter * MAX_STACK_DEPTH;
+
+    for (size_t i = 0; i < MAX_STACK_DEPTH; i++) {
+        if (frame && frame >= lower && frame < upper) {
+            ctx.profiling.addresses[offset + i] = frame->linkRegister;
+            if (frame == frame->backChain) {
+                IExec->DebugPrintF("Stack frame back chain loop %p\n", frame);
+                frame = NULL;
+                // TODO: how about identical/repeated IPs?
+                // TODO: check stack frame alignment?
+                // TODO: check instruction pointer alignment?
+            } else {
+                frame = frame->backChain;
+            }
+        } else {
+            ctx.profiling.addresses[offset + i] = NULL;
+            break;
+        }
+    }
+
+    if (++stackTraceCounter >= ctx.profiling.stackTraces) {
+        stackTraceCounter = 0;
+    }
+}
+
 void InterruptCode(void)
 {
     BOOL quit = FALSE;
@@ -25,28 +65,15 @@ void InterruptCode(void)
 
     struct ExecBase* sysbase = (struct ExecBase *)SysBase;
     struct Task* task = sysbase->ThisTask;
-    static unsigned counter = 0;
+    static size_t counter = 0;
 
     ctx.back->sampleBuffer[counter].task = task;
     if (sysbase->TDNestCnt > 0) {
         ctx.back->forbidCount++;
     }
 
-    if (ctx.profile) {
-        static unsigned addressCounter = 0;
-
-        uint32 *sp = task->tc_SPReg;
-        uint32 address = sp ? *(sp + 1) : 0;
-
-        if (sp > (uint32*)task->tc_SPUpper || sp < (uint32*)task->tc_SPLower) {
-            IExec->DebugPrintF("SP %p\n", sp);
-        }
-
-        ctx.addresses[addressCounter] = (ULONG *)address;
-
-        if (++addressCounter >= ctx.maxAddresses) {
-            addressCounter = 0;
-        }
+    if (ctx.profiling.enabled /*&& task == ctx.profiling.profiledTask*/) {
+        GetStackTrace(task);
     }
 
     if (++counter >= ctx.totalSamples) {
@@ -102,7 +129,7 @@ static size_t CopyProcessData(struct Task* task, SampleInfo* info)
                 ctx.cliNameBuffer[2] = '\0';
 
                 // BSTR (should be NUL-terminated)
-                size_t len = *(UBYTE *)commandName;
+                const size_t len = *(UBYTE *)commandName;
                 strlcpy(ctx.cliNameBuffer + 2, commandName + 1, NAME_LEN - 2);
 
                 if (len < (NAME_LEN - 3)) {

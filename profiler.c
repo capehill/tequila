@@ -128,9 +128,10 @@ static size_t CopyProcessData(struct Task* task, SampleInfo* info)
                 ctx.cliNameBuffer[1] = '[';
                 ctx.cliNameBuffer[2] = '\0';
 
-                // BSTR (should be NUL-terminated)
-                const size_t len = *(UBYTE *)commandName;
-                strlcpy(ctx.cliNameBuffer + 2, commandName + 1, NAME_LEN - 2);
+                // cli_CommandName is a BSTR (should be NUL-terminated).
+                // Remove path part
+                const char* src = IDOS->FilePart(commandName + 1);
+                const size_t len = strlcpy(ctx.cliNameBuffer + 2, src, NAME_LEN - 2);
 
                 if (len < (NAME_LEN - 3)) {
                     ctx.cliNameBuffer[2 + len] = ']';

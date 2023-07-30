@@ -9,6 +9,7 @@
 
 #define MAX_SYMBOLS 200
 #define MAX_STACK_TRACES 200
+#define LOWEST_VALID_CODE_ADDRESS 0x100000 /* Just a random number from magic hat */
 
 struct DebugIFace* IDebug;
 
@@ -40,7 +41,14 @@ static void Symbol(const ULONG* address, SymbolInfo* symbolInfo)
         snprintf(symbolInfo->functionName, NAME_LEN, "%s", ds->SourceFunctionName);
         IDebug->ReleaseDebugSymbol(ds);
     } else {
-        snprintf(symbolInfo->moduleName, NAME_LEN, "Not available");
+        const char* detail = "";
+        if ((uint32)address < LOWEST_VALID_CODE_ADDRESS) {
+            detail = " (invalid address?)";
+        } else if ((uint32)address & 0x3) {
+            detail = " (invalid alignment?)";
+        }
+
+        snprintf(symbolInfo->moduleName, NAME_LEN, "Symbol not available%s", detail);
         symbolInfo->functionName[0] = '\0';
         //snprintf(symbolInfo->functionName, NAME_LEN, "%p", address);
         //IExec->DebugPrintF("%p\n", address);
@@ -288,6 +296,7 @@ static void ShowByStackTraces(StackTrace* traces)
     for (size_t i = 0; i < ctx.profiling.uniqueStackTraces; i++) {
         printf("\nStack trace %u (count %u - %.2f%%):\n", i, traces[i].count, 100.0f * traces[i].count / ctx.profiling.stackTraces);
         if (traces[i].id == 0) {
+            // TODO: keep book on actual collected stackTraces in case profiling is stopped before buffer is complete?
             printf("  Empty stack trace\n");
         }
 

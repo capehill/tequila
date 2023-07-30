@@ -10,71 +10,69 @@
 #define MAX_TASKS 100
 #define NAME_LEN 256
 
-// TODO: add documentation
-
 typedef struct Sample {
-    struct Task* task;
+    struct Task* task; // Currently running task, collected by timer interrupt
     //uint32 forbidCount; // TODO: could collect for each task. But it needs zeroing during flip
 } Sample;
 
 typedef struct SampleInfo {
-    char nameBuffer[NAME_LEN];
-    struct Task* task;
-    unsigned count;
-    float stackUsage;
-    uint32 pid;
-    BYTE priority;
+    char nameBuffer[NAME_LEN]; // Display name for task
+    struct Task* task; // System task
+    unsigned count; // Number of samples task was seen running
+    float stackUsage; // % of stack used
+    uint32 pid; // System process ID
+    BYTE priority; // System task priority
 } SampleInfo;
 
 typedef struct SampleData {
-    Sample* sampleBuffer;
-    uint32 uniqueTasks;
-    uint32 forbidCount;
+    Sample* sampleBuffer; // Task data
+    uint32 uniqueTasks; // Number of unique tasks identified
+    uint32 forbidCount; // Number of samples collected with task switching disabled
 } SampleData;
 
 typedef struct Profiling {
-    BOOL enabled;
+    BOOL enabled; // TRUE when user enables profiling
     //struct Task* task; // TODO: consider focusing on a specific task
-    ULONG** addresses;
-    ULONG stackTraces;
-    size_t validSymbols;
-    size_t uniqueSymbols;
-    size_t uniqueStackTraces;
+    ULONG** addresses; // Stores collected instruction pointers of collected stack traces
+    ULONG stackTraces; // Number of stack traces: 30 (seconds) * samples
+    size_t validSymbols; // Number of valid symbols found. (For example, not NULL)
+    size_t uniqueSymbols; // Number of unique symbols found
+    size_t uniqueStackTraces; // Number of unique stack traces found
 } Profiling;
 
 typedef struct Context {
-    uint64 longestInterrupt;
-    uint64 longestDisplayUpdate;
+    uint64 longestInterrupt; // Debug info about longest timer interrupt
+    uint64 longestDisplayUpdate; // Debug info about longest display update
 
-    ULONG period;
-    ULONG samples;
-    ULONG interval;
+    ULONG period; // 1000000 microseconds / samples
+    ULONG samples; // Samples collected per second
+    ULONG interval; // Display update interval in seconds
     ULONG totalSamples; // interval * samples
     ULONG taskSwitchesPerSecond;
     ULONG lastDispCount;
 
-    BOOL debugMode;
-    BOOL gui;
-    BOOL running;
-    BOOL customRendering;
-    BOOL symbolLookupWorkaroundNeeded;
+    BOOL debugMode; // Display extra debug information when enabled
+    BOOL gui; // Start in GUI mode
+    BOOL running; // TRUE until program is quit
+    BOOL customRendering; // Alternative (simpler and faster) GUI mode
+    BOOL symbolLookupWorkaroundNeeded; // WA needed for kernel version <= 54.46
 
-    BYTE timerSignal;
-    BYTE lastSignal;
-    struct Task* mainTask;
-    struct Interrupt* interrupt;
+    BYTE timerSignal; // Signaled by timer interrupt when data enough data is collected for display
+    BYTE lastSignal; // Signaled by timer interrupt when quitting. Main program waits for timer to "stop"
+    struct Task* mainTask; // Tequila main program
+    struct Interrupt* interrupt; // Tequila timer interrupt
 
-    SampleInfo sampleInfo[MAX_TASKS];
+    SampleInfo sampleInfo[MAX_TASKS]; // This data is refined for each unique task from SampleData
 
-    SampleData sampleData[2];
-    SampleData* front;
-    SampleData* back;
+    SampleData sampleData[2]; // Double-buffered data for task monitoring, collected by timer interrupt
+    SampleData* front; // Points to data being displayed
+    SampleData* back; // Points to data being collected
 
-    char* cliNameBuffer;
+    char* cliNameBuffer; // String buffer for shell process names
 
-    TimerContext sampler;
+    TimerContext sampler; // Context for timer interrupt
 
-    Profiling profiling;
+    Profiling profiling; // Profiling-related data
 } Context;
 
 extern Context ctx;

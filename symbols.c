@@ -312,6 +312,14 @@ static void ShowByStackTraces(StackTrace* traces)
     }
 }
 
+static void ShowStatistics(void)
+{
+    printf("\nStatistics:\n");
+    printf("  %u stack frame loop(s) detected\n", ctx.profiling.stackFrameLoopDetected);
+    printf("  %u stack frame alignment issue(s) detected\n", ctx.profiling.stackFrameNotAligned);
+    printf("  %u stack frame out-of-bound issue(s) detected\n", ctx.profiling.stackFrameOutOfBounds);
+}
+
 void ShowSymbols(void)
 {
     IDebug = (struct DebugIFace *)IExec->GetInterface((struct Library *)SysBase, "debug", 1, NULL);
@@ -353,6 +361,7 @@ void ShowSymbols(void)
 
     ShowByModule(symbols);
     ShowByStackTraces(traces);
+    ShowStatistics();
 
 out:
     FreeMemory(traces);

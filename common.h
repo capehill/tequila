@@ -38,6 +38,9 @@ typedef struct Profiling {
     size_t validSymbols; // Number of valid symbols found. (For example, not NULL)
     size_t uniqueSymbols; // Number of unique symbols found
     size_t uniqueStackTraces; // Number of unique stack traces found
+    size_t stackFrameLoopDetected; // When back chain pointer points to the current stack frame
+    size_t stackFrameNotAligned; // When stack frame pointers don't have 16-byte relative alignment
+    size_t stackFrameOutOfBounds; // When stack frame pointer exceeds lower or upper bound
 } Profiling;
 
 typedef struct Context {

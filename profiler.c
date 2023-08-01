@@ -35,15 +35,32 @@ static void GetStackTrace(struct Task* task)
         if (frame && frame >= lower && frame < upper) {
             ctx.profiling.addresses[offset + i] = frame->linkRegister;
             if (frame == frame->backChain) {
-                IExec->DebugPrintF("Stack frame back chain loop %p\n", frame);
+                if (ctx.debugMode) {
+                    IExec->DebugPrintF("Stack frame back chain loop %p\n", frame);
+                }
+                ctx.profiling.stackFrameLoopDetected++;
                 frame = NULL;
                 // TODO: how about identical/repeated IPs?
-                // TODO: check stack frame alignment?
-                // TODO: check instruction pointer alignment?
             } else {
+                if (frame->backChain) {
+                    const uint32 diff = (uint32)frame->backChain - (uint32)frame;
+                    const uint32 modulo = diff % 16;
+                    if (modulo) {
+                        if (ctx.debugMode) {
+                            IExec->DebugPrintF("Stack frames not aligned %p vs %p\n", frame, frame->backChain);
+                        }
+                        ctx.profiling.stackFrameNotAligned++;
+                    }
+                }
                 frame = frame->backChain;
             }
         } else {
+            if (frame) {
+                if (ctx.debugMode) {
+                    IExec->DebugPrintF("Stack frame pointer %p out of bounds\n", frame);
+                }
+                ctx.profiling.stackFrameOutOfBounds++;
+            }
             ctx.profiling.addresses[offset + i] = NULL;
             break;
         }

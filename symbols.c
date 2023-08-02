@@ -165,7 +165,7 @@ static void AddEmptyStackTrace(SymbolInfo* symbols, StackTrace* traces)
 static void PrepareSymbols(SymbolInfo* symbols, StackTrace* traces)
 {
     printf("\nPlease wait and do not quit profiled programs...\n");
-    printf("\nProcessing symbol data (stack traces %lu)...\n", ctx.profiling.stackTraces);
+    printf("\nProcessing symbol data (stack traces %u)...\n", ctx.profiling.stackTraces);
 
     const size_t part = ctx.profiling.stackTraces / 10;
     size_t nextMark = part;
@@ -189,7 +189,7 @@ static void PrepareSymbols(SymbolInfo* symbols, StackTrace* traces)
         }
 
         if (trace >= nextMark) {
-            printf("%u/%lu\n", trace, ctx.profiling.stackTraces);
+            printf("%u/%u\n", trace, ctx.profiling.stackTraces);
             nextMark += part;
         }
     }
@@ -296,7 +296,6 @@ static void ShowByStackTraces(StackTrace* traces)
     for (size_t i = 0; i < ctx.profiling.uniqueStackTraces; i++) {
         printf("\nStack trace %u (count %u - %.2f%%):\n", i, traces[i].count, 100.0f * traces[i].count / ctx.profiling.stackTraces);
         if (traces[i].id == 0) {
-            // TODO: keep book on actual collected stackTraces in case profiling is stopped before buffer is complete?
             printf("  Empty stack trace\n");
         }
 

@@ -150,8 +150,8 @@ static BOOL InitContext(const int argc, char* argv[])
     }
 
     if (ctx.profiling.enabled) {
-        ctx.profiling.stackTraces = 30 * ctx.samples;
-        ctx.profiling.addresses = AllocateMemory(ctx.profiling.stackTraces * sizeof(ULONG *) * MAX_STACK_DEPTH);
+        ctx.profiling.maxStackTraces = 30 * ctx.samples;
+        ctx.profiling.addresses = AllocateMemory(ctx.profiling.maxStackTraces * sizeof(ULONG *) * MAX_STACK_DEPTH);
 
         if (!ctx.profiling.addresses) {
             puts("Failed to allocate address buffer");
@@ -249,7 +249,11 @@ int main(int argc, char* argv[])
         }
 
         if (ctx.profiling.enabled) {
-            ShowSymbols();
+            if (ctx.profiling.stackTraces) {
+                ShowSymbols();
+            } else {
+                puts("No stack traces collected");
+            }
         }
     }
 

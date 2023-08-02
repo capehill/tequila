@@ -66,8 +66,12 @@ static void GetStackTrace(struct Task* task)
         }
     }
 
-    if (++stackTraceCounter >= ctx.profiling.stackTraces) {
+    if (++stackTraceCounter >= ctx.profiling.maxStackTraces) {
         stackTraceCounter = 0;
+    }
+
+    if (ctx.profiling.stackTraces < ctx.profiling.maxStackTraces) {
+        ++ctx.profiling.stackTraces;
     }
 }
 

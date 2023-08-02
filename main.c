@@ -151,10 +151,10 @@ static BOOL InitContext(const int argc, char* argv[])
 
     if (ctx.profiling.enabled) {
         ctx.profiling.maxStackTraces = 30 * ctx.samples;
-        ctx.profiling.addresses = AllocateMemory(ctx.profiling.maxStackTraces * sizeof(ULONG *) * MAX_STACK_DEPTH);
+        ctx.profiling.samples = AllocateMemory(ctx.profiling.maxStackTraces * sizeof(StackTraceSample));
 
-        if (!ctx.profiling.addresses) {
-            puts("Failed to allocate address buffer");
+        if (!ctx.profiling.samples) {
+            puts("Failed to allocate stack trace buffer");
             return FALSE;
         }
     }
@@ -219,8 +219,8 @@ static void CleanupContext()
     ctx.sampleData[0].sampleBuffer = ctx.sampleData[1].sampleBuffer = NULL;
 
     if (ctx.profiling.enabled) {
-        FreeMemory(ctx.profiling.addresses);
-        ctx.profiling.addresses = NULL;
+        FreeMemory(ctx.profiling.samples);
+        ctx.profiling.samples = NULL;
     }
 
     if (ctx.interrupt) {

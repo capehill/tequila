@@ -29,11 +29,12 @@ static void GetStackTrace(struct Task* task)
     const StackFrame* const lower = task->tc_SPLower;
     const StackFrame* const upper = task->tc_SPUpper;
 
-    const size_t offset = stackTraceCounter * MAX_STACK_DEPTH;
+    StackTraceSample* sample = &ctx.profiling.samples[stackTraceCounter];
+    sample->task = task;
 
     for (size_t i = 0; i < MAX_STACK_DEPTH; i++) {
         if (frame && frame >= lower && frame < upper) {
-            ctx.profiling.addresses[offset + i] = frame->linkRegister;
+            sample->addresses[i] = frame->linkRegister;
             if (frame == frame->backChain) {
                 if (ctx.debugMode) {
                     IExec->DebugPrintF("Stack frame back chain loop %p\n", frame);
@@ -61,7 +62,7 @@ static void GetStackTrace(struct Task* task)
                 }
                 ctx.profiling.stackFrameOutOfBounds++;
             }
-            ctx.profiling.addresses[offset + i] = NULL;
+            sample->addresses[i] = NULL;
             break;
         }
     }
@@ -242,7 +243,7 @@ static BOOL TraverseLists(struct Task* task, SampleInfo* info)
     return found;
 }
 
-static SampleInfo InitializeTaskData(struct Task* task)
+SampleInfo InitializeTaskData(struct Task* task)
 {
     SampleInfo info;
 

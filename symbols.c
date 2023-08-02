@@ -1,5 +1,6 @@
 #include "symbols.h"
 #include "common.h"
+#include "profiler.h"
 
 #include <proto/exec.h>
 
@@ -22,7 +23,7 @@ typedef struct SymbolInfo {
 
 typedef struct StackTrace {
     uint32 id;
-    // struct Task* task; // TODO: add task info?
+    struct Task* task;
     size_t count;
     uint32* ip[MAX_STACK_DEPTH];
 } StackTrace;
@@ -109,12 +110,12 @@ static void AddUniqueSymbol(uint32* address, SymbolInfo* symbols)
     }
 }
 
-static BOOL FindStackTrace(uint32* ip[MAX_STACK_DEPTH], StackTrace* traces)
+static BOOL FindStackTrace(StackTraceSample* sample, StackTrace* traces)
 {
     uint32 id = 0;
     for (size_t frame = 0; frame < MAX_STACK_DEPTH; frame++) {
-        if (ip[frame]) {
-            id += (uint32)ip[frame];
+        if (sample->addresses[frame]) {
+            id += (uint32)sample->addresses[frame];
         } else {
             break;
         }
@@ -131,14 +132,15 @@ static BOOL FindStackTrace(uint32* ip[MAX_STACK_DEPTH], StackTrace* traces)
     return FALSE;
 }
 
-static void AddStackTrace(uint32* ip[MAX_STACK_DEPTH], StackTrace* traces, SymbolInfo* symbols)
+static void AddStackTrace(StackTraceSample* sample, StackTrace* traces, SymbolInfo* symbols)
 {
     StackTrace* t = &traces[ctx.profiling.uniqueStackTraces];
-    t->count = 1;
     t->id = 0; // TODO: is hash needed?
+    t->task = sample->task;
+    t->count = 1;
 
     for (size_t frame = 0; frame < MAX_STACK_DEPTH; frame++) {
-        t->ip[frame] = ip[frame];
+        t->ip[frame] = sample->addresses[frame];
         if (t->ip[frame]) {
             t->id += (uint32)t->ip[frame];
             if (frame == 0) {
@@ -158,7 +160,10 @@ static void AddEmptyStackTrace(SymbolInfo* symbols, StackTrace* traces)
 {
     // Initialize dummy empty stack trace.
     // If profiling buffer is only filled partially, it should be there.
-    uint32* dummy = NULL;
+    StackTraceSample dummy;
+    dummy.task = NULL;
+    dummy.addresses[0] = NULL;
+
     AddStackTrace(&dummy, traces, symbols);
 }
 
@@ -178,11 +183,11 @@ static void PrepareSymbols(SymbolInfo* symbols, StackTrace* traces)
     AddEmptyStackTrace(symbols, traces);
 
     for (size_t trace = 0; trace < ctx.profiling.stackTraces; trace++) {
-        const size_t offset = trace * MAX_STACK_DEPTH;
+        StackTraceSample* sample = &ctx.profiling.samples[trace];
 
-        if (!FindStackTrace(&ctx.profiling.addresses[offset], traces)) {
+        if (!FindStackTrace(sample, traces)) {
             if (ctx.profiling.uniqueStackTraces < MAX_STACK_TRACES) {
-                AddStackTrace(&ctx.profiling.addresses[offset], traces, symbols);
+                AddStackTrace(sample, traces, symbols);
             } else {
                 puts("Too many unique stack traces");
             }
@@ -291,10 +296,9 @@ static void ShowByStackTraces(StackTrace* traces)
 
     printf("\nUnique stack traces:\n");
 
-    SymbolInfo si;
-
     for (size_t i = 0; i < ctx.profiling.uniqueStackTraces; i++) {
-        printf("\nStack trace %u (count %u - %.2f%%):\n", i, traces[i].count, 100.0f * traces[i].count / ctx.profiling.stackTraces);
+        SampleInfo sampleInfo = InitializeTaskData(traces[i].task);
+        printf("\nStack trace %u (count %u - %.2f%% - context %s (%p)):\n", i, traces[i].count, 100.0f * traces[i].count / ctx.profiling.stackTraces, sampleInfo.nameBuffer, traces[i].task);
         if (traces[i].id == 0) {
             printf("  Empty stack trace\n");
         }
@@ -302,6 +306,7 @@ static void ShowByStackTraces(StackTrace* traces)
         for (size_t frame = 0; frame < MAX_STACK_DEPTH; frame++) {
             const uint32* const ip = traces[i].ip[frame];
             if (ip) {
+                SymbolInfo si;
                 Symbol(ip, &si);
                 printf("  Frame %u, ip %p - %s @ %s\n", frame, traces[i].ip[frame], si.functionName, si.moduleName);
             } else {

@@ -30,10 +30,15 @@ typedef struct SampleData {
     uint32 forbidCount; // Number of samples collected with task switching disabled
 } SampleData;
 
+typedef struct StackTraceSample {
+    struct Task* task; // Related task
+    ULONG* addresses[MAX_STACK_DEPTH]; // Stores collected instruction pointers of collected stack traces
+} StackTraceSample;
+
 typedef struct Profiling {
     BOOL enabled; // TRUE when user enables profiling
     //struct Task* task; // TODO: consider focusing on a specific task
-    ULONG** addresses; // Stores collected instruction pointers of collected stack traces
+    StackTraceSample* samples;
     size_t stackTraces; // Number of stack traces collected
     size_t maxStackTraces; // 30 (seconds) * samples
     size_t validSymbols; // Number of valid symbols found. (For example, not NULL)

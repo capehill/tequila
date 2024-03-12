@@ -39,18 +39,18 @@ static void ParseArgs(void)
 
     if (result) {
         if (params.samples) {
-            ctx.samples = *params.samples;
+            ctx.samples = (ULONG)*params.samples;
         }
 
         if (params.interval) {
-            ctx.interval = *params.interval;
+            ctx.interval = (ULONG)*params.interval;
         }
 
-        ctx.debugMode = params.debug;
-        ctx.profiling.enabled = params.profile;
+        ctx.debugMode = (BOOL)params.debug;
+        ctx.profiling.enabled = (BOOL)params.profile;
         //ctx.profiling.task = IExec->FindTask((char *)params.profile); // TODO
-        ctx.gui = params.gui;
-        ctx.customRendering = params.customRendering;
+        ctx.gui = (BOOL)params.gui;
+        ctx.customRendering = (BOOL)params.customRendering;
 
         IDOS->FreeArgs(result);
     } else {
@@ -94,8 +94,8 @@ static void ReadToolTypes(const char* const name)
     if (name) {
         struct DiskObject* diskObject = IIcon->GetDiskObject(name);
         if (diskObject) {
-            ctx.samples = ToolTypeToNumber(diskObject, "SAMPLES");
-            ctx.interval = ToolTypeToNumber(diskObject, "INTERVAL");
+            ctx.samples = (ULONG)ToolTypeToNumber(diskObject, "SAMPLES");
+            ctx.interval = (ULONG)ToolTypeToNumber(diskObject, "INTERVAL");
             ctx.debugMode = IIcon->FindToolType(diskObject->do_ToolTypes, "DEBUG") != NULL;
             ctx.profiling.enabled = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
             //if (ctx.profiling.enabled) {

@@ -121,7 +121,7 @@ BOOL TimerInit(TimerContext* ctx, struct Interrupt* interrupt)
         goto clean;
     }
 
-    ctx->device = IExec->OpenDevice("timer.device", UNIT_MICROHZ, (struct IORequest *)ctx->request, 0);
+    ctx->device = (BYTE)IExec->OpenDevice("timer.device", UNIT_MICROHZ, (struct IORequest *)ctx->request, 0);
 
     if (ctx->device) {
         puts("Failed to open timer.device");
@@ -173,7 +173,7 @@ void TimerWait(const ULONG micros)
 
 double TicksToMicros(const uint64 ticks)
 {
-    return 1000000.0 * ticks / (double)frequency;
+    return 1000000.0 * (double)ticks / (double)frequency;
 }
 
 double GetUptimeInSeconds(void)

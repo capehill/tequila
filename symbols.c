@@ -276,7 +276,7 @@ static void ShowByModule(SymbolInfo* symbols)
 
         for (size_t i = 0; i < ctx.profiling.uniqueSymbols; i++) {
             if (strcmp(moduleNames[m], symbols[i].moduleName) == 0) {
-                const float percentage = 100.0f * symbols[i].count / ctx.profiling.validSymbols;
+                const float percentage = 100.0f * (float)symbols[i].count / (float)ctx.profiling.validSymbols;
                 printf("%10.2f %10u %64s\n", percentage, symbols[i].count, symbols[i].functionName);
             }
         }
@@ -298,7 +298,7 @@ static void ShowByStackTraces(StackTrace* traces)
 
     for (size_t i = 0; i < ctx.profiling.uniqueStackTraces; i++) {
         SampleInfo sampleInfo = InitializeTaskData(traces[i].task);
-        printf("\nStack trace %u (count %u - %.2f%% - context %s (%p)):\n", i, traces[i].count, 100.0f * traces[i].count / ctx.profiling.stackTraces, sampleInfo.nameBuffer, traces[i].task);
+        printf("\nStack trace %u (count %u - %.2f%% - context %s (%p)):\n", i, traces[i].count, 100.0f * (float)traces[i].count / (float)ctx.profiling.stackTraces, sampleInfo.nameBuffer, (void*)traces[i].task);
         if (traces[i].id == 0) {
             printf("  Empty stack trace\n");
         }
@@ -308,7 +308,7 @@ static void ShowByStackTraces(StackTrace* traces)
             if (ip) {
                 SymbolInfo si;
                 Symbol(ip, &si);
-                printf("  Frame %u, ip %p - %s @ %s\n", frame, traces[i].ip[frame], si.functionName, si.moduleName);
+                printf("  Frame %u, ip %p - %s @ %s\n", frame, (void*)traces[i].ip[frame], si.functionName, si.moduleName);
             } else {
                 break;
             }
@@ -355,7 +355,7 @@ void ShowSymbols(void)
     printf("\n%10s %10s %64s\n", "Sample %", "Count", "Symbol name (module + function)");
 
     for (size_t i = 0; i < ctx.profiling.uniqueSymbols; i++) {
-        const float percentage = 100.0f * symbols[i].count / ctx.profiling.validSymbols;
+        const float percentage = 100.0f * (float)symbols[i].count / (float)ctx.profiling.validSymbols;
 
         char name[NAME_LEN];
         snprintf(name, NAME_LEN, "%s %s", symbols[i].moduleName, symbols[i].functionName);

@@ -1,7 +1,7 @@
 NAME = Tequila
 
 CC = ppc-amigaos-gcc
-CFLAGS = -Wall -Wextra -O3 -gstabs
+CFLAGS = -Wall -Wextra -Wpedantic -Wconversion -O3 -gstabs
 AMIGADATE = $(shell date LFORMAT "%-d.%-m.%Y")
 OBJS = profiler.o timer.o common.o symbols.o gui.o main.o locale.o
 DEPS = $(OBJS:.o=.d)

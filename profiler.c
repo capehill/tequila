@@ -171,10 +171,10 @@ static size_t CopyProcessData(struct Task* task, SampleInfo* info)
 
 static float GetStackUsage(struct Task* task)
 {
-    const float totalStack = task->tc_SPUpper - task->tc_SPLower;
-    const float usedStack = task->tc_SPUpper - task->tc_SPReg;
+    const ULONG totalStack = (ULONG)task->tc_SPUpper - (ULONG)task->tc_SPLower;
+    const ULONG usedStack = (ULONG)task->tc_SPUpper - (ULONG)task->tc_SPReg;
 
-    return 100.0f * usedStack / totalStack;
+    return 100.0f * (float)usedStack / (float)totalStack;
 }
 
 static BOOL Traverse(struct List* list, struct Task* target, SampleInfo* info)
@@ -264,7 +264,7 @@ SampleInfo InitializeTaskData(struct Task* task)
             info.priority = ((struct Node *)task)->ln_Pri;
         } else {
             /* Could be some removed task */
-            snprintf(info.nameBuffer, NAME_LEN, "%s %p", GetString(MSG_UNKNOWN_TASK), task);
+            snprintf(info.nameBuffer, NAME_LEN, "%s %p", GetString(MSG_UNKNOWN_TASK), (void*)task);
         }
     }
 
@@ -327,7 +327,7 @@ float GetIdleCpu(void)
     for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
         for (size_t n = 0; n < sizeof(knownIdleTaskNames) / sizeof(knownIdleTaskNames[0]); n++) {
             if (strcmp(ctx.sampleInfo[i].nameBuffer, knownIdleTaskNames[n]) == 0) {
-                idleCpu += 100.0f * ctx.sampleInfo[i].count / ctx.totalSamples;
+                idleCpu += 100.0f * (float)ctx.sampleInfo[i].count / (float)ctx.totalSamples;
             }
         }
     }
@@ -337,7 +337,7 @@ float GetIdleCpu(void)
 
 float GetForbidCpu(void)
 {
-    return 100.0f * ctx.front->forbidCount / ctx.totalSamples;
+    return 100.0f * (float)ctx.front->forbidCount / (float)ctx.totalSamples;
 }
 
 static void ShowResults(void)
@@ -372,7 +372,7 @@ static void ShowResults(void)
 
     for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
         SampleInfo* si = &ctx.sampleInfo[i];
-        const float cpu = 100.0f * si->count / ctx.totalSamples;
+        const float cpu = 100.0f * (float)si->count / (float)ctx.totalSamples;
 
         static char pidBuffer[16];
 

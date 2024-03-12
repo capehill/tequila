@@ -226,8 +226,8 @@ static uint32 RenderHook(struct Hook* hook __attribute__((unused)), APTR space, 
             IGraphics->BltBitMapRastPort(cr.bitmap, 0, 0, msg->gpr_RPort,
                                          box.Left,
                                          box.Top,
-                                         min(box.Width, cr.width),
-                                         min(box.Height, cr.height),
+                                         (WORD)min(box.Width, cr.width),
+                                         (WORD)min(box.Height, cr.height),
                                          0xC0);
         }
     }
@@ -240,15 +240,15 @@ static void ResizeBitMap(int w, int h)
     if (w > cr.width || h > cr.height) {
         IGraphics->FreeBitMap(cr.bitmap);
 
-        cr.bitmap = IGraphics->AllocBitMapTags(w, h, 32,
+        cr.bitmap = IGraphics->AllocBitMapTags((uint32)w, (uint32)h, 32,
                                                BMATags_PixelFormat, PIXF_A8R8G8B8,
                                                //BMATags_UserPrivate, TRUE,
                                                BMATags_Displayable, TRUE,
                                                TAG_DONE);
 
         if (cr.bitmap) {
-            cr.width = IGraphics->GetBitMapAttr(cr.bitmap, BMA_ACTUALWIDTH);
-            cr.height = IGraphics->GetBitMapAttr(cr.bitmap, BMA_HEIGHT);
+            cr.width = (int)IGraphics->GetBitMapAttr(cr.bitmap, BMA_ACTUALWIDTH);
+            cr.height = (int)IGraphics->GetBitMapAttr(cr.bitmap, BMA_HEIGHT);
 
             cr.rp.BitMap = cr.bitmap;
             //printf("New bitmap %d * %d\n", width, height);
@@ -268,20 +268,20 @@ static BOOL InitCustomRendering(void)
     }
 
     char buffer[16];
-    size_t len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
-    cr.columnWidth[0] = IGraphics->TextLength(&cr.rp, buffer, len);
+    int len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
+    cr.columnWidth[0] = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
     len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_CPU));
-    cr.columnWidth[1] = IGraphics->TextLength(&cr.rp, buffer, len);
+    cr.columnWidth[1] = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
     len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PRIORITY));
-    cr.columnWidth[2] = IGraphics->TextLength(&cr.rp, buffer, len);
+    cr.columnWidth[2] = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
     len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_STACK));
-    cr.columnWidth[3] = IGraphics->TextLength(&cr.rp, buffer, len);
+    cr.columnWidth[3] = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
     len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PID));
-    cr.columnWidth[4] = IGraphics->TextLength(&cr.rp, buffer, len);
+    cr.columnWidth[4] = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
     return TRUE;
 }
@@ -490,8 +490,8 @@ static void UpdateBitMap(void)
         IGraphics->RectFillColor(&cr.rp,
                                  0,
                                  0,
-                                 box.Width - 1,
-                                 box.Height - 1,
+                                 (uint32)box.Width - 1,
+                                 (uint32)box.Height - 1,
                                  0xFF000000);
 
         IGraphics->SetRPAttrs(&cr.rp,
@@ -501,72 +501,72 @@ static void UpdateBitMap(void)
                               TAG_DONE);
 
         const int xOffset[5] = { 1,
-                                 0.65f * box.Width, // Special adjustment, "Priority" column takes more space
-                                 0.8f * box.Width,
-                                 0.9f * box.Width,
+                                 (int)(0.65f * box.Width), // Special adjustment, "Priority" column takes more space
+                                 (int)(0.8f * box.Width),
+                                 (int)(0.9f * box.Width),
                                  box.Width - 2 };
 
         static char buffer[NAME_LEN];
 
-        int yOffset = cr.rp.TxHeight;
+        WORD yOffset = (WORD)cr.rp.TxHeight;
 
         {
             /* Columns */
-            size_t len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
+            int len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_TASK));
 
-            IGraphics->Move(&cr.rp, xOffset[0], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[0], yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_CPU));
 
-            IGraphics->Move(&cr.rp, xOffset[1] - cr.columnWidth[1], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)(xOffset[1] - cr.columnWidth[1]), yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PRIORITY));
 
-            IGraphics->Move(&cr.rp, xOffset[2] - cr.columnWidth[2], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)(xOffset[2] - cr.columnWidth[2]), yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_STACK));
 
-            IGraphics->Move(&cr.rp, xOffset[3] - cr.columnWidth[3], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)(xOffset[3] - cr.columnWidth[3]), yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), GetString(MSG_COLUMN_PID));
 
-            IGraphics->Move(&cr.rp, xOffset[4] - cr.columnWidth[4], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)(xOffset[4] - cr.columnWidth[4]), yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
         }
 
         /* Dynamic content */
         for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
             SampleInfo* si = &ctx.sampleInfo[i];
-            const float cpu = 100.0f * si->count / ctx.totalSamples;
+            const float cpu = 100.0f * (float)si->count / (float)ctx.totalSamples;
 
-            yOffset += cr.rp.TxHeight;
+            yOffset += (WORD)cr.rp.TxHeight;
 
-            size_t len = snprintf(buffer, sizeof(buffer), "%s", si->nameBuffer);
+            int len = snprintf(buffer, sizeof(buffer), "%s", si->nameBuffer);
 
-            IGraphics->Move(&cr.rp, xOffset[0], yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[0], yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), "%3.1f", cpu);
-            WORD textLength = IGraphics->TextLength(&cr.rp, buffer, len);
+            WORD textLength = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
-            IGraphics->Move(&cr.rp, xOffset[1] - textLength, yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[1] - textLength, yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), "%d", si->priority);
-            textLength = IGraphics->TextLength(&cr.rp, buffer, len);
+            textLength = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
-            IGraphics->Move(&cr.rp, xOffset[2] - textLength, yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[2] - textLength, yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             len = snprintf(buffer, sizeof(buffer), "%3.1f", si->stackUsage);
-            textLength = IGraphics->TextLength(&cr.rp, buffer, len);
+            textLength = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
-            IGraphics->Move(&cr.rp, xOffset[3] - textLength, yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[3] - textLength, yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
 
             if (si->pid > 0) {
                 len = snprintf(buffer, sizeof(buffer), "%lu", si->pid);
@@ -574,10 +574,10 @@ static void UpdateBitMap(void)
                 len = snprintf(buffer, sizeof(buffer), "(task)");
             }
 
-            textLength = IGraphics->TextLength(&cr.rp, buffer, len);
+            textLength = IGraphics->TextLength(&cr.rp, buffer, (UWORD)len);
 
-            IGraphics->Move(&cr.rp, xOffset[4] - textLength, yOffset);
-            IGraphics->Text(&cr.rp, buffer, len);
+            IGraphics->Move(&cr.rp, (WORD)xOffset[4] - textLength, yOffset);
+            IGraphics->Text(&cr.rp, buffer, (UWORD)len);
         }
     }
 
@@ -594,7 +594,7 @@ static void UpdateListBrowser(void)
 
     for (size_t i = 0; i < ctx.front->uniqueTasks; i++) {
         SampleInfo* si = &ctx.sampleInfo[i];
-        const float cpu = 100.0f * si->count / ctx.totalSamples;
+        const float cpu = 100.0f * (float)si->count / (float)ctx.totalSamples;
         static char cpuBuffer[10];
         static char stackBuffer[10];
         static char pidBuffer[16];
@@ -748,7 +748,7 @@ static void HandleEvents(void)
             }
         }
 
-        if (((wait & timerSignal) | refresh) && window) {
+        if (((int)(wait & timerSignal) | refresh) && window) {
             MyClock start, finish;
             ITimer->ReadEClock(&start.un.clockVal);
             UpdateDisplay();

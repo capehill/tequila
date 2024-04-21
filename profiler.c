@@ -216,12 +216,12 @@ size_t GetTotalTaskCount(void)
     struct ExecBase* eb = (struct ExecBase *)SysBase;
     size_t tasks = 0;
 
-    IExec->Forbid();
+    IExec->Disable();
 
     tasks += GetTaskCount(&eb->TaskReady);
     tasks += GetTaskCount(&eb->TaskWait);
 
-    IExec->Permit();
+    IExec->Enable();
 
     return tasks;
 }
@@ -230,7 +230,7 @@ static BOOL TraverseLists(struct Task* task, SampleInfo* info)
 {
     struct ExecBase* eb = (struct ExecBase *)SysBase;
 
-    IExec->Forbid();
+    IExec->Disable();
 
     BOOL found = Traverse(&eb->TaskReady, task, info);
 
@@ -238,7 +238,7 @@ static BOOL TraverseLists(struct Task* task, SampleInfo* info)
         found = Traverse(&eb->TaskWait, task, info);
     }
 
-    IExec->Permit();
+    IExec->Enable();
 
     return found;
 }

@@ -21,12 +21,6 @@ BOOL LocaleInit(void)
             //printf("%s\n", locale->loc_LanguageName);
             catalog = ILocale->OpenCatalog(NULL, "tequila.catalog",
                                            TAG_DONE);
-            if (!catalog) {
-                const LONG err = IDOS->IoErr();
-                if (err != 0) {
-                    printf("Failed to open catalog (%ld)\n", err);
-                }
-            }
             localeInfo.li_Catalog = catalog;
             return TRUE;
         } else {

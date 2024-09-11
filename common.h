@@ -9,6 +9,7 @@
 #define MAX_STACK_DEPTH 30
 #define MAX_TASKS 100
 #define NAME_LEN 256
+#define MAX_LOAD_AVERAGES (15*60)
 
 typedef struct Sample {
     struct Task* task; // Currently running task, collected by timer interrupt
@@ -76,6 +77,11 @@ typedef struct Context {
     SampleData sampleData[2]; // Double-buffered data for task monitoring, collected by timer interrupt
     SampleData* front; // Points to data being displayed
     SampleData* back; // Points to data being collected
+
+    float* loadAverage; // stored CPU usage over time
+    float loadAverage1; // load average of last 60 seconds
+    float loadAverage5; // load average of last 5 minutes
+    float loadAverage15; // load average of last 15 minutes
 
     char* cliNameBuffer; // String buffer for shell process names
 

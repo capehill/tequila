@@ -162,6 +162,12 @@ static BOOL InitContext(const int argc, char* argv[])
     ctx.back = &ctx.sampleData[0];
     ctx.front = NULL;
 
+    ctx.loadAverage = AllocateMemory(MAX_LOAD_AVERAGES * sizeof(float)); // TODO: interval
+    if (!ctx.loadAverage) {
+        puts("Failed to allocate load average buffer");
+        return FALSE;
+    }
+
     ctx.cliNameBuffer = AllocateMemory(NAME_LEN);
 
     if (!ctx.cliNameBuffer) {
@@ -213,6 +219,7 @@ static void CleanupContext()
 
     ctx.cliNameBuffer = NULL;
 
+    FreeMemory(ctx.loadAverage);
     FreeMemory(ctx.sampleData[0].sampleBuffer);
     FreeMemory(ctx.sampleData[1].sampleBuffer);
 

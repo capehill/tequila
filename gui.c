@@ -38,6 +38,7 @@ enum EObject {
     OID_TaskSwitches,
     OID_Idle,
     OID_Forbid,
+    OID_LoadAverage,
     OID_Space,
     OID_Count // KEEP LAST
 };
@@ -435,6 +436,13 @@ static Object* CreateGui(struct MsgPort* port)
                     BUTTON_Transparent, TRUE,
                     TAG_DONE),
 
+                LAYOUT_AddChild, objects[OID_LoadAverage] = IIntuition->NewObject(ButtonClass, NULL,
+                    GA_ReadOnly, TRUE,
+                    GA_Text, "Load average 0.0 % 0.0 % 0.0 %", // TODO: GetString(MSG_LOAD_AVERAGE_INIT_VALUE),
+                    BUTTON_BevelStyle, BVS_NONE,
+                    BUTTON_Transparent, TRUE,
+                    TAG_DONE),
+
                 TAG_DONE), // horizontal layout.gadget
             CHILD_WeightedHeight, 10,
 
@@ -643,12 +651,15 @@ static void UpdateDisplay(void)
     static char tasksString[16];
     static char taskSwitchesString[32];
     static char uptimeString[64];
+    static char loadAverageString[32];
 
     snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu());
     snprintf(forbidString, sizeof(forbidString), "%s %3.1f%%", GetString(MSG_FORBID), GetForbidCpu());
     snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
     snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), ctx.taskSwitchesPerSecond);
     snprintf(uptimeString, sizeof(uptimeString), "%s %s", GetString(MSG_UPTIME), GetUptimeString());
+    snprintf(loadAverageString, sizeof(loadAverageString), "Load average %3.1f%% %3.1f%% %3.1f%%",
+             ctx.loadAverage1, ctx.loadAverage5, ctx.loadAverage15);
 
     IIntuition->SetAttrs(objects[OID_Idle],
                          GA_Text, idleString,
@@ -668,6 +679,10 @@ static void UpdateDisplay(void)
 
     IIntuition->SetAttrs(objects[OID_Uptime],
                          GA_Text, uptimeString,
+                         TAG_DONE);
+
+    IIntuition->SetAttrs(objects[OID_LoadAverage],
+                         GA_Text, loadAverageString,
                          TAG_DONE);
 
     IIntuition->RefreshGList((struct Gadget *)objects[OID_InfoLayout], window, NULL, -1);

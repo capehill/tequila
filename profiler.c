@@ -282,6 +282,46 @@ static int Comparison(const void* first, const void* second)
     return 0;
 }
 
+static void CalculateLoadAverages()
+{
+    static int loadAverageCounter;
+    int i = 0;
+
+    // TODO: GetIdleCpu() is called multiple times during ShowResults()
+    float cpu = 100.0f - GetIdleCpu();
+
+    if (cpu < 0.0f) {
+        // glitch: idle CPU can exceed 100% when GUI is created / adjusted
+        cpu = 0.0f;
+    }
+
+    ctx.loadAverage[loadAverageCounter++ % MAX_LOAD_AVERAGES] = cpu;
+    ctx.loadAverage1 = 0.0f;
+
+    while (i < 60) {
+        ctx.loadAverage1 += ctx.loadAverage[(loadAverageCounter + i + 14 * 60) % MAX_LOAD_AVERAGES];
+        i++;
+    }
+
+    ctx.loadAverage5 = ctx.loadAverage1;
+
+    while (i < 5 * 60) {
+        ctx.loadAverage5 += ctx.loadAverage[(loadAverageCounter + i + 10 * 60) % MAX_LOAD_AVERAGES];
+        i++;
+    }
+
+    ctx.loadAverage15 = ctx.loadAverage5;
+
+    while (i < MAX_LOAD_AVERAGES) {
+        ctx.loadAverage15 += ctx.loadAverage[i];
+        i++;
+    }
+
+    ctx.loadAverage1 /= 60.0f;
+    ctx.loadAverage5 /= (5.0f * 60.0f);
+    ctx.loadAverage15 /= (15.0f * 60.0f);
+}
+
 void PrepareResults(void)
 {
     for (size_t sample = 0; sample < ctx.totalSamples; sample++) {
@@ -309,6 +349,8 @@ void PrepareResults(void)
 
     ctx.taskSwitchesPerSecond = (dispCount - ctx.lastDispCount) / ctx.interval;
     ctx.lastDispCount = dispCount;
+
+    CalculateLoadAverages();
 }
 
 float GetIdleCpu(void)
@@ -362,6 +404,8 @@ static void ShowResults(void)
            ctx.taskSwitchesPerSecond,
            GetString(MSG_UPTIME),
            GetUptimeString());
+
+    printf("Load average %3.1f %3.1f %3.1f\n", ctx.loadAverage1, ctx.loadAverage5, ctx.loadAverage15);
 
     printf("%-40s %6s %10s %10s %6s\n",
            GetString(MSG_COLUMN_TASK),

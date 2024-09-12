@@ -162,7 +162,7 @@ static BOOL InitContext(const int argc, char* argv[])
     ctx.back = &ctx.sampleData[0];
     ctx.front = NULL;
 
-    ctx.loadAverage = AllocateMemory(MAX_LOAD_AVERAGES * sizeof(float)); // TODO: interval
+    ctx.loadAverage = AllocateMemory(MAX_LOAD_AVERAGES / ctx.interval * sizeof(float));
     if (!ctx.loadAverage) {
         puts("Failed to allocate load average buffer");
         return FALSE;

@@ -78,6 +78,7 @@ typedef struct Context {
     SampleData* front; // Points to data being displayed
     SampleData* back; // Points to data being collected
 
+    float idleCpu; // Most recently measured idle CPU percentage
     float* loadAverage; // stored CPU usage over time
     float loadAverage1; // load average of last 60 seconds
     float loadAverage5; // load average of last 5 minutes

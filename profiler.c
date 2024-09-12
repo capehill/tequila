@@ -284,42 +284,49 @@ static int Comparison(const void* first, const void* second)
 
 static void CalculateLoadAverages()
 {
-    static int loadAverageCounter;
-    int i = 0;
+    static uint32 loadAverageCounter;
+    uint32 i = 0;
 
-    // TODO: GetIdleCpu() is called multiple times during ShowResults()
-    float cpu = 100.0f - GetIdleCpu();
-
-    if (cpu < 0.0f) {
+    ctx.idleCpu = GetIdleCpu();
+    if (ctx.idleCpu >= 100.0f) {
         // glitch: idle CPU can exceed 100% when GUI is created / adjusted
-        cpu = 0.0f;
+        ctx.idleCpu = 100.0f;
     }
 
-    ctx.loadAverage[loadAverageCounter++ % MAX_LOAD_AVERAGES] = cpu;
+    const float cpu = 100.0f - ctx.idleCpu;
+
+    const uint32 max1 = 60 / ctx.interval;
+    const uint32 max5 = 5 * 60 / ctx.interval;
+    const uint32 max15 = MAX_LOAD_AVERAGES / ctx.interval;
+
+    const uint32 offset1 = 14 * 60 / ctx.interval;
+    const uint32 offset5 = 10 * 60 / ctx.interval;
+
+    ctx.loadAverage[loadAverageCounter++ % max15] = cpu;
     ctx.loadAverage1 = 0.0f;
 
-    while (i < 60) {
-        ctx.loadAverage1 += ctx.loadAverage[(loadAverageCounter + i + 14 * 60) % MAX_LOAD_AVERAGES];
+    while (i < max1) {
+        ctx.loadAverage1 += ctx.loadAverage[(loadAverageCounter + i + offset1) % max15];
         i++;
     }
 
     ctx.loadAverage5 = ctx.loadAverage1;
 
-    while (i < 5 * 60) {
-        ctx.loadAverage5 += ctx.loadAverage[(loadAverageCounter + i + 10 * 60) % MAX_LOAD_AVERAGES];
+    while (i < max5) {
+        ctx.loadAverage5 += ctx.loadAverage[(loadAverageCounter + i + offset5) % max15];
         i++;
     }
 
     ctx.loadAverage15 = ctx.loadAverage5;
 
-    while (i < MAX_LOAD_AVERAGES) {
+    while (i < max15) {
         ctx.loadAverage15 += ctx.loadAverage[i];
         i++;
     }
 
-    ctx.loadAverage1 /= 60.0f;
-    ctx.loadAverage5 /= (5.0f * 60.0f);
-    ctx.loadAverage15 /= (15.0f * 60.0f);
+    ctx.loadAverage1 /= (float)max1;
+    ctx.loadAverage5 /= (float)max5;
+    ctx.loadAverage15 /= (float)max15;
 }
 
 void PrepareResults(void)
@@ -395,7 +402,7 @@ static void ShowResults(void)
     printf("%cc[[ Tequila ]] - %s %3.1f%%. %s %3.1f%%. %s %u. %s %lu. %s %s\n",
            0x1B,
            GetString(MSG_IDLE),
-           GetIdleCpu(),
+           ctx.idleCpu,
            GetString(MSG_FORBID),
            GetForbidCpu(),
            GetString(MSG_TASKS),

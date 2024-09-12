@@ -653,7 +653,7 @@ static void UpdateDisplay(void)
     static char uptimeString[64];
     static char loadAverageString[32];
 
-    snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), GetIdleCpu());
+    snprintf(idleString, sizeof(idleString), "%s %3.1f%%", GetString(MSG_IDLE), ctx.idleCpu);
     snprintf(forbidString, sizeof(forbidString), "%s %3.1f%%", GetString(MSG_FORBID), GetForbidCpu());
     snprintf(tasksString, sizeof(tasksString), "%s %u", GetString(MSG_TASKS), GetTotalTaskCount());
     snprintf(taskSwitchesString, sizeof(taskSwitchesString), "%s %lu", GetString(MSG_TASK_SWITCHES), ctx.taskSwitchesPerSecond);

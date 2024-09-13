@@ -38,6 +38,8 @@ typedef struct StackTraceSample {
 
 typedef struct Profiling {
     BOOL enabled; // TRUE when user enables profiling
+    BOOL showTaskDisplay; // Can be disabled when profiling in shell mode
+
     //struct Task* task; // TODO: consider focusing on a specific task
     StackTraceSample* samples;
     size_t stackTraces; // Number of stack traces collected

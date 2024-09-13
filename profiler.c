@@ -288,7 +288,7 @@ static void CalculateLoadAverages()
     uint32 i = 0;
 
     ctx.idleCpu = GetIdleCpu();
-    if (ctx.idleCpu >= 100.0f) {
+    if (ctx.idleCpu > 100.0f) {
         // glitch: idle CPU can exceed 100% when GUI is created / adjusted
         ctx.idleCpu = 100.0f;
     }
@@ -464,7 +464,7 @@ void ShellLoop(void)
     while (ctx.running) {
         const uint32 wait = IExec->Wait(signalMask | SIGBREAKF_CTRL_C);
 
-        if (wait & signalMask) {
+        if ((wait & signalMask) && ctx.profiling.showTaskDisplay) {
             ShowResults();
         }
 

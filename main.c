@@ -23,17 +23,18 @@ typedef struct Params {
     LONG* interval;
     LONG debug;
     LONG profile;
+    LONG showTaskDisplay;
     LONG gui;
     LONG customRendering;
 } Params;
 
-static Params params = { NULL, NULL, 0, 0, 0, 0};
+static Params params = { NULL, NULL, 0, 0, 0, 0, 0 };
 
 Context ctx;
 
 static void ParseArgs(void)
 {
-    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S,GUI/S,CUSTOMRENDERING/S";
+    const char* const pattern = "SAMPLES/N,INTERVAL/N,DEBUG/S,PROFILE/S,SHOWTASKDISPLAY/S,GUI/S,CUSTOMRENDERING/S";
 
     struct RDArgs* result = IDOS->ReadArgs(pattern, (int32 *)&params, NULL);
 
@@ -48,6 +49,7 @@ static void ParseArgs(void)
 
         ctx.debugMode = (BOOL)params.debug;
         ctx.profiling.enabled = (BOOL)params.profile;
+        ctx.profiling.showTaskDisplay = (BOOL)params.showTaskDisplay;
         //ctx.profiling.task = IExec->FindTask((char *)params.profile); // TODO
         ctx.gui = (BOOL)params.gui;
         ctx.customRendering = (BOOL)params.customRendering;
@@ -77,6 +79,14 @@ static void ValidateArgs(void)
         puts("Max interval 5 seconds");
         ctx.interval = 5;
     }
+
+    if (ctx.profiling.enabled) {
+        if (!ctx.profiling.showTaskDisplay) {
+            puts("Starting in profile-only mode");
+        }
+    } else {
+        ctx.profiling.showTaskDisplay = TRUE;
+    }
 }
 
 static int ToolTypeToNumber(struct DiskObject* diskObject, const char* const name)
@@ -98,6 +108,7 @@ static void ReadToolTypes(const char* const name)
             ctx.interval = (ULONG)ToolTypeToNumber(diskObject, "INTERVAL");
             ctx.debugMode = IIcon->FindToolType(diskObject->do_ToolTypes, "DEBUG") != NULL;
             ctx.profiling.enabled = IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE") != NULL;
+            ctx.profiling.showTaskDisplay = IIcon->FindToolType(diskObject->do_ToolTypes, "SHOWTASKDISPLAY") != NULL;
             //if (ctx.profiling.enabled) {
             //    ctx.profiling.task = IExec->FindTask(IIcon->FindToolType(diskObject->do_ToolTypes, "PROFILE"));
             //}

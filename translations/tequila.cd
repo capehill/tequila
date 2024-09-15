@@ -6,7 +6,7 @@ MSG_TEQUILA_ICONIFY (//)
 I|Iconify
 ;
 MSG_TEQUILA_ABOUT (//)
-A|About
+?|About
 ;
 MSG_TEQUILA_QUIT (//)
 Q|Quit

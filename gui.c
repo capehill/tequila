@@ -297,21 +297,30 @@ static BOOL InitListBrowserData(void)
     }
 
     columnInfo = IListBrowser->AllocLBColumnInfo(5,
+                                                 //
                                                  LBCIA_Column, 0,
                                                  LBCIA_Title, GetString(MSG_COLUMN_TASK),
                                                  LBCIA_Weight, 60,
+                                                 //
                                                  LBCIA_Column, 1,
                                                  LBCIA_Title, GetString(MSG_COLUMN_CPU),
                                                  LBCIA_Weight, 10,
+                                                 LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 //
                                                  LBCIA_Column, 2,
                                                  LBCIA_Title, GetString(MSG_COLUMN_PRIORITY),
                                                  LBCIA_Weight, 10,
+                                                 LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 //
                                                  LBCIA_Column, 3,
                                                  LBCIA_Title, GetString(MSG_COLUMN_STACK),
                                                  LBCIA_Weight, 10,
+                                                 LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 //
                                                  LBCIA_Column, 4,
                                                  LBCIA_Title, GetString(MSG_COLUMN_PID),
                                                  LBCIA_Weight, 10,
+                                                 LBCIA_HorizJustify, LCJ_RIGHT,
                                                  TAG_DONE);
 
     if (!columnInfo) {
@@ -623,15 +632,19 @@ static void UpdateListBrowser(void)
                                               LBNA_Column, 1,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, cpuBuffer,
+                                                LBNCA_HorizJustify, LCJ_RIGHT,
                                               LBNA_Column, 2,
                                                 LBNCA_CopyInteger, TRUE,
                                                 LBNCA_Integer, &priorityBuffer,
+                                                LBNCA_HorizJustify, LCJ_RIGHT,
                                               LBNA_Column, 3,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, stackBuffer,
+                                                LBNCA_HorizJustify, LCJ_RIGHT,
                                               LBNA_Column, 4,
                                                 LBNCA_CopyText, TRUE,
                                                 LBNCA_Text, pidBuffer,
+                                                LBNCA_HorizJustify, LCJ_RIGHT,
                                               TAG_DONE);
 
         IExec->AddTail(labelList, nodes[i]);

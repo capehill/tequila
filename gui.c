@@ -301,21 +301,25 @@ static BOOL InitListBrowserData(void)
                                                  LBCIA_Column, 0,
                                                  LBCIA_Title, GetString(MSG_COLUMN_TASK),
                                                  LBCIA_Weight, 60,
+                                                 LBCIA_Separator, FALSE,
                                                  //
                                                  LBCIA_Column, 1,
                                                  LBCIA_Title, GetString(MSG_COLUMN_CPU),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 LBCIA_Separator, FALSE,
                                                  //
                                                  LBCIA_Column, 2,
                                                  LBCIA_Title, GetString(MSG_COLUMN_PRIORITY),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 LBCIA_Separator, FALSE,
                                                  //
                                                  LBCIA_Column, 3,
                                                  LBCIA_Title, GetString(MSG_COLUMN_STACK),
                                                  LBCIA_Weight, 10,
                                                  LBCIA_HorizJustify, LCJ_RIGHT,
+                                                 LBCIA_Separator, FALSE,
                                                  //
                                                  LBCIA_Column, 4,
                                                  LBCIA_Title, GetString(MSG_COLUMN_PID),

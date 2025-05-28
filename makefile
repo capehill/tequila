@@ -1,23 +1,24 @@
 NAME = Tequila
 
 CC = ppc-amigaos-gcc
-CFLAGS = -Wall -Wextra -Wpedantic -Wconversion -O3 -gstabs
+CFLAGS = -Wall -Wextra -Wpedantic -Wconversion -Werror -O3 -gstabs
 AMIGADATE = $(shell date LFORMAT "%-d.%-m.%Y")
-OBJS = profiler.o timer.o common.o symbols.o gui.o main.o locale.o
+SRCS = $(wildcard src/*.c)
+OBJS = $(SRCS:.c=.o)
 DEPS = $(OBJS:.o=.d)
 LOCALE_DESCRIPTOR = translations/tequila.cd
 LOCALE_TEMPLATE = translations/tequila.ct
 FINNISH_TEMPLATE = translations/finnish.ct
 
-all: locale_generated.h $(NAME)
+all: src/locale_generated.h $(NAME)
 
 %.o : %.c
-	$(CC) -c $< $(CFLAGS) -D__AMIGA_DATE__="$(AMIGADATE)"
+	$(CC) -o $@ -c $< $(CFLAGS) -D__AMIGA_DATE__="$(AMIGADATE)"
 
 $(NAME): $(OBJS)
 	$(CC) -o $@ $(OBJS) -lauto
 
-locale_generated.h: $(LOCALE_DESCRIPTOR)
+src/locale_generated.h: $(LOCALE_DESCRIPTOR)
 	CATCOMP $(LOCALE_DESCRIPTOR) CFILE $@
 
 $(LOCALE_TEMPLATE): $(LOCALE_DESCRIPTOR)
@@ -40,8 +41,7 @@ strip:
 	$(CC) -MM -MP -MT $(@:.d=.o) -o $@ $< $(CFLAGS)
 
 clean:
-	rm $(NAME)
-	rm *.o
+	rm $(NAME) $(OBJS) $(DEPS)
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)
